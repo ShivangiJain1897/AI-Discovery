@@ -70,6 +70,10 @@ export default function SessionPage() {
             {session?.input.inputType && session.input.inputType !== "auto" && (
               <span className="badge">{session.input.inputType}</span>
             )}
+            <span className="spacer" />
+            {session?.status === "complete" && (
+              <Link href={`/intake/new?session=${id}`} className="btn primary">→ Send to intake</Link>
+            )}
           </div>
         </div>
 

@@ -1,10 +1,17 @@
 # AI Discovery
 
-A **product discovery copilot**. Paste anything — a feature idea, a written requirement, or a raw
-meeting transcript — then pick exactly what you want generated. No fixed pipeline, no ceremony.
+Two connected modes for product teams:
+
+- **Discovery** — a copilot. Paste anything (a feature idea, a written requirement, or a raw
+  meeting transcript) and pick exactly what you want generated: a PRD, requirements, research,
+  analysis, or a business-value case.
+- **Intake** — a team tracker. Promote a discovered use case into a tracked record with
+  stakeholders, data, and platform; the tracker **flags similar/duplicate use cases** and lets you
+  **compare** them side by side. Persists to disk.
 
 It runs out of the box in **demo mode** (illustrative, deterministic outputs, no API key) and
-switches to **live outputs powered by Claude** the moment you add an API key.
+switches to **live outputs powered by Claude** the moment you add an API key. Duplicate detection
+works with no key.
 
 > New here? [`SETUP.md`](./SETUP.md) has step-by-step run instructions and troubleshooting.
 
@@ -35,6 +42,20 @@ output card you can read, copy, and act on.
 | ✨ | **Business Value — Qualitative** | Strategic, experiential, and risk value |
 
 Pick one or many. They run in parallel and each returns a card with sections, bullets, and tables.
+Any completed session has a **→ Send to intake** button that promotes it into the tracker.
+
+### Intake tracker
+
+A lightweight, team-facing tracker for use cases worth pursuing. Each record captures the **area**
+it comes from, **business / technology / data stakeholders**, the **data** involved, the
+**platform**, what's **TBD**, a **status**, and a running **team-activity** trail. Two smart bits:
+
+- **Duplicate detection** — as you add a use case, it flags similar existing ones with a match
+  score and the shared terms ("looks similar to X, Y, Z"), so two teams don't build the same thing.
+- **Compare** — select multiple use cases and see them side by side with an overlap summary.
+
+It **persists to disk** (`.data/intake.json`), so the tracker survives restarts — no database
+required for the pilot.
 
 ### The maturity path (built-in)
 
@@ -73,13 +94,22 @@ from your actual input. Override the model with `ANTHROPIC_MODEL`.
 
 ```
 app/
-  page.tsx                     Composer: paste input, pick capabilities, generate
-  session/[id]/page.tsx        Results: input echo, pipeline status, output cards
+  page.tsx                     Discovery composer: paste input, pick capabilities, generate
+  session/[id]/page.tsx        Results: output cards + "Send to intake"
+  intake/
+    page.tsx                   Tracker (list, filter, select-to-compare)
+    new/page.tsx               New use case form with live duplicate warning
+    [id]/page.tsx              Use case detail: edit, status, team activity, related
+    compare/page.tsx           Side-by-side comparison + overlap
   api/
     capabilities/route.ts      Capability catalog + mode
-    analyze/route.ts           POST = run selected capabilities, GET = list sessions
+    analyze/route.ts           POST = run capabilities, GET = list sessions
     analyze/[id]/route.ts      GET one session
-  components/shared.tsx        Top bar
+    intake/route.ts            GET list / POST create (returns similar)
+    intake/[id]/route.ts       GET / PATCH (edit + add contribution)
+    intake/similar/route.ts    POST draft similarity check (live warning)
+    intake/compare/route.ts    POST compare 2-4 use cases
+  components/shared.tsx        Top bar + nav + status pill
   globals.css                  Futuristic light design system
 
 lib/
@@ -89,11 +119,15 @@ lib/
     run.ts                     Per-capability prompts + live/demo runner
     seeds.ts                   Demo-mode templates (input woven in via placeholders)
     analyze.ts                 Runs selected capabilities in parallel
+  intake/
+    types.ts                   UseCase, statuses, contributions
+    store.ts                   File-backed persistence (.data/intake.json)
+    similarity.ts              Deterministic cosine similarity + shared terms
   llm/
     provider.ts                LlmProvider interface + auto-selection
     anthropic.ts               Live provider (Claude)
     mock.ts                    Demo provider
-  store.ts                     In-memory store (swap for a DB — see roadmap)
+  store.ts                     In-memory session store (swap for a DB — see roadmap)
 
   # Payer value-chain engine (heritage; reusable building blocks)
   domain/member-value-chain.ts Payer member value chain: stages, personas, KPIs
