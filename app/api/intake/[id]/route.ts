@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUseCase, saveUseCase } from "@/lib/intake/store";
+import { deleteUseCase, getUseCase, saveUseCase } from "@/lib/intake/store";
 import type { Contribution, IntakeStatus, UseCase } from "@/lib/intake/types";
 
 export const runtime = "nodejs";
@@ -11,6 +11,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const item = await getUseCase(id);
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ item });
+}
+
+/** DELETE /api/intake/:id */
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const item = await getUseCase(id);
+  if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  await deleteUseCase(id);
+  return NextResponse.json({ ok: true });
 }
 
 /**

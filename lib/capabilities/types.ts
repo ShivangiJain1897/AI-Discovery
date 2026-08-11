@@ -77,4 +77,6 @@ export interface AnalyzeSession {
   createdAt: number;
   finishedAt?: number;
   runs: CapabilityRun[];
+  /** Set when this discovery was launched from an intake use case. */
+  linkedUseCaseId?: string;
 }

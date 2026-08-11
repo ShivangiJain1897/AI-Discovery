@@ -58,6 +58,8 @@ export interface UseCase {
 
   /** Link back to the Discovery session this came from, if any. */
   linkedSessionId?: string;
+  /** Discovery sessions run FROM this use case (the intake → discovery loop). */
+  discoverySessionIds?: string[];
 
   contributions: Contribution[];
   createdAt: number;

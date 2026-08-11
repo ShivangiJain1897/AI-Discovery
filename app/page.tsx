@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TopBar } from "./components/shared";
 import type { AnalyzeSession, CapabilityMeta, InputType } from "@/lib/capabilities/types";
@@ -21,13 +21,24 @@ const INPUT_TYPES: { id: InputType; label: string }[] = [
 
 const EXAMPLE = `Members keep calling because they can't find their digital ID card in the app after enrolling. We want a "Where's my ID card?" experience that surfaces the card instantly on first login and lets them add it to their phone wallet.`;
 
-export default function Composer() {
+export default function ComposerPage() {
+  return (
+    <Suspense fallback={null}>
+      <Composer />
+    </Suspense>
+  );
+}
+
+function Composer() {
   const router = useRouter();
+  const params = useSearchParams();
+  const fromUseCase = params.get("useCase") || "";
   const [meta, setMeta] = useState<CapResponse | null>(null);
   const [sessions, setSessions] = useState<AnalyzeSession[]>([]);
   const [text, setText] = useState("");
   const [inputType, setInputType] = useState<InputType>("auto");
   const [productContext, setProductContext] = useState("");
+  const [sourceTitle, setSourceTitle] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set(["prd"]));
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
@@ -36,6 +47,22 @@ export default function Composer() {
     fetch("/api/capabilities").then((r) => r.json()).then(setMeta).catch(() => {});
     fetch("/api/analyze").then((r) => r.json()).then((d) => setSessions(d.sessions ?? [])).catch(() => {});
   }, []);
+
+  // Prefill when launched from an intake use case (the intake → discovery loop).
+  useEffect(() => {
+    if (!fromUseCase) return;
+    fetch(`/api/intake/${fromUseCase}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const uc = d.item;
+        if (!uc) return;
+        setSourceTitle(uc.title);
+        setText(uc.problem || uc.title);
+        setInputType("requirement");
+        if (uc.area) setProductContext(uc.area);
+      })
+      .catch(() => {});
+  }, [fromUseCase]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, CapabilityMeta[]>();
@@ -75,6 +102,7 @@ export default function Composer() {
           inputType,
           productContext,
           capabilityIds: [...selected],
+          linkedUseCaseId: fromUseCase || undefined,
         }),
       });
       const data = await res.json();
@@ -99,6 +127,14 @@ export default function Composer() {
             outputs you want: a PRD, detailed requirements, market and competitive research, process &amp;
             domain analysis, defect foresight, or a business-value case.
           </p>
+          {sourceTitle && (
+            <div className="frompanel">
+              <span>🔎 Discovering intake use case: <strong>{sourceTitle}</strong></span>
+              <Link href={`/intake/${fromUseCase}`} className="btn ghost" style={{ padding: "6px 12px" }}>
+                ↩ Back to use case
+              </Link>
+            </div>
+          )}
         </section>
 
         {/* Composer */}

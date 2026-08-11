@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusPill, TopBar, useCurrentUser } from "../../components/shared";
 import type { SimilarMatch, UseCase } from "@/lib/intake/types";
@@ -9,6 +9,7 @@ import { INTAKE_STATUSES } from "@/lib/intake/types";
 
 export default function UseCaseDetail() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [uc, setUc] = useState<UseCase | null>(null);
   const [similar, setSimilar] = useState<SimilarMatch[]>([]);
   const [notFound, setNotFound] = useState(false);
@@ -74,6 +75,12 @@ export default function UseCaseDetail() {
     setNote("");
   }
 
+  async function remove() {
+    if (!confirm("Delete this use case? This cannot be undone.")) return;
+    await fetch(`/api/intake/${id}`, { method: "DELETE" });
+    router.push("/intake");
+  }
+
   if (notFound) {
     return (
       <>
@@ -121,8 +128,9 @@ export default function UseCaseDetail() {
                 ))}
               </select>
             </label>
+            <Link className="btn" href={`/?useCase=${uc.id}`}>🔎 Run discovery</Link>
             {uc.linkedSessionId && (
-              <Link className="btn ghost" href={`/session/${uc.linkedSessionId}`}>↗ View discovery</Link>
+              <Link className="btn ghost" href={`/session/${uc.linkedSessionId}`}>↗ Source discovery</Link>
             )}
             <span className="spacer" />
             {editing ? (
@@ -131,7 +139,10 @@ export default function UseCaseDetail() {
                 <button className="btn ghost" onClick={() => { setEditing(false); setDraft(uc); }}>Cancel</button>
               </>
             ) : (
-              <button className="btn" onClick={() => setEditing(true)}>✎ Edit details</button>
+              <>
+                <button className="btn" onClick={() => setEditing(true)}>✎ Edit</button>
+                <button className="btn ghost" onClick={remove} style={{ color: "var(--crit)" }}>🗑 Delete</button>
+              </>
             )}
           </div>
         </div>
@@ -175,7 +186,17 @@ export default function UseCaseDetail() {
           <div>
             {similar.length > 0 && (
               <div className="similar-panel" style={{ marginTop: 0, marginBottom: 16 }}>
-                <h4>🔎 Related use cases</h4>
+                <h4 style={{ display: "flex", alignItems: "center" }}>
+                  🔎 Related use cases
+                  <span className="spacer" />
+                  <Link
+                    className="btn ghost"
+                    style={{ padding: "5px 11px", fontSize: 12.5 }}
+                    href={`/intake/compare?ids=${[uc.id, ...similar.map((m) => m.id)].join(",")}`}
+                  >
+                    ⇄ Compare all
+                  </Link>
+                </h4>
                 {similar.map((m) => (
                   <div key={m.id} className="similar-item">
                     <span className="match">{Math.round(m.score * 100)}%</span>
@@ -183,6 +204,21 @@ export default function UseCaseDetail() {
                     <span className="spacer" />
                     <StatusPill status={m.status} />
                   </div>
+                ))}
+              </div>
+            )}
+
+            {uc.discoverySessionIds && uc.discoverySessionIds.length > 0 && (
+              <div className="card" style={{ marginBottom: 16 }}>
+                <div className="composer-label" style={{ marginBottom: 10 }}>
+                  🔎 Discovery runs · {uc.discoverySessionIds.length}
+                </div>
+                {uc.discoverySessionIds.map((sid) => (
+                  <Link key={sid} href={`/session/${sid}`} className="similar-item" style={{ display: "flex" }}>
+                    <span style={{ fontWeight: 600, color: "var(--ink)" }}>Session {sid}</span>
+                    <span className="spacer" />
+                    <span style={{ color: "var(--brand)", fontSize: 13 }}>open ↗</span>
+                  </Link>
                 ))}
               </div>
             )}

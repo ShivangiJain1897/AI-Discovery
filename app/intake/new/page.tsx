@@ -33,6 +33,7 @@ function NewUseCaseForm() {
     tags: "",
   });
   const [similar, setSimilar] = useState<SimilarMatch[]>([]);
+  const [compareSel, setCompareSel] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -68,7 +69,12 @@ function NewUseCaseForm() {
         body: JSON.stringify({ title, problem, area }),
       })
         .then((r) => r.json())
-        .then((d) => setSimilar(d.similar ?? []))
+        .then((d) => {
+          const matches: SimilarMatch[] = d.similar ?? [];
+          setSimilar(matches);
+          // Default: compare against all detected matches.
+          setCompareSel(new Set(matches.map((m) => m.id)));
+        })
         .catch(() => {});
     }, 450);
   }, []);
@@ -76,7 +82,15 @@ function NewUseCaseForm() {
     checkSimilar(f.title, f.problem, f.area);
   }, [f.title, f.problem, f.area, checkSimilar]);
 
-  async function submit() {
+  function toggleCompare(matchId: string) {
+    setCompareSel((prev) => {
+      const next = new Set(prev);
+      next.has(matchId) ? next.delete(matchId) : next.add(matchId);
+      return next;
+    });
+  }
+
+  async function submit(compareAfter = false) {
     setError("");
     if (!f.title.trim()) return setError("Give the use case a title.");
     setSubmitting(true);
@@ -92,8 +106,13 @@ function NewUseCaseForm() {
         }),
       });
       const data = await res.json();
-      if (data?.item?.id) router.push(`/intake/${data.item.id}`);
-      else setError(data?.error || "Could not save.");
+      if (!data?.item?.id) return setError(data?.error || "Could not save.");
+      const sel = [...compareSel];
+      if (compareAfter && sel.length > 0) {
+        router.push(`/intake/compare?ids=${[data.item.id, ...sel].join(",")}`);
+      } else {
+        router.push(`/intake/${data.item.id}`);
+      }
     } catch {
       setError("Network error.");
     } finally {
@@ -163,17 +182,26 @@ function NewUseCaseForm() {
 
             {similar.length > 0 && (
               <div className="similar-panel">
-                <h4>⚠ Looks similar to {similar.length} existing use case{similar.length === 1 ? "" : "s"} — check before adding a duplicate:</h4>
+                <h4>⚠ Looks similar to {similar.length} existing use case{similar.length === 1 ? "" : "s"} — tick the ones to compare:</h4>
                 {similar.map((m) => (
-                  <SimilarRow key={m.id} m={m} />
+                  <SimilarRow key={m.id} m={m} checked={compareSel.has(m.id)} onToggle={() => toggleCompare(m.id)} />
                 ))}
               </div>
             )}
 
             <div className="runbar">
-              <button className="btn primary lg" onClick={submit} disabled={submitting}>
-                {submitting ? <span className="spinner" /> : "＋"} {submitting ? "Saving…" : "Add to intake"}
-              </button>
+              {similar.length > 0 && compareSel.size > 0 ? (
+                <>
+                  <button className="btn primary lg" onClick={() => submit(true)} disabled={submitting}>
+                    {submitting ? <span className="spinner" /> : "⇄"} Add &amp; compare ({compareSel.size})
+                  </button>
+                  <button className="btn lg" onClick={() => submit(false)} disabled={submitting}>Just add</button>
+                </>
+              ) : (
+                <button className="btn primary lg" onClick={() => submit(false)} disabled={submitting}>
+                  {submitting ? <span className="spinner" /> : "＋"} {submitting ? "Saving…" : "Add to intake"}
+                </button>
+              )}
               <Link href="/intake" className="btn ghost">Cancel</Link>
               {error && <span style={{ color: "var(--crit)", fontSize: 13 }}>{error}</span>}
             </div>
@@ -184,11 +212,14 @@ function NewUseCaseForm() {
   );
 }
 
-function SimilarRow({ m }: { m: SimilarMatch }) {
+function SimilarRow({ m, checked, onToggle }: { m: SimilarMatch; checked: boolean; onToggle: () => void }) {
   return (
     <div className="similar-item">
+      <span className={`checkcell ${checked ? "on" : ""}`} onClick={onToggle} title="Include in comparison">
+        {checked ? "✓" : ""}
+      </span>
       <span className="match">{Math.round(m.score * 100)}% match</span>
-      <Link href={`/intake/${m.id}`} style={{ fontWeight: 600, color: "var(--ink)" }}>{m.title}</Link>
+      <Link href={`/intake/${m.id}`} target="_blank" style={{ fontWeight: 600, color: "var(--ink)" }}>{m.title}</Link>
       <StatusPill status={m.status} />
       <span className="spacer" />
       <span style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>

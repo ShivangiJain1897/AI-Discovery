@@ -3,6 +3,7 @@ import { runAnalysis } from "@/lib/capabilities/analyze";
 import { CAPABILITIES } from "@/lib/capabilities/registry";
 import type { AnalyzeSession, InputType } from "@/lib/capabilities/types";
 import { listSessions, newSessionId, saveSession } from "@/lib/store";
+import { getUseCase, saveUseCase } from "@/lib/intake/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     inputType?: string;
     productContext?: string;
     capabilityIds?: string[];
+    linkedUseCaseId?: string;
   } = {};
   try {
     body = await req.json();
@@ -56,8 +58,19 @@ export async function POST(req: Request) {
     mode: "demo",
     createdAt: Date.now(),
     runs: [],
+    linkedUseCaseId: typeof body.linkedUseCaseId === "string" ? body.linkedUseCaseId : undefined,
   };
   saveSession(session);
+
+  // Link this discovery back to the intake use case it came from, if any.
+  if (session.linkedUseCaseId) {
+    const uc = await getUseCase(session.linkedUseCaseId);
+    if (uc) {
+      uc.discoverySessionIds = [...(uc.discoverySessionIds ?? []), session.id];
+      uc.updatedAt = Date.now();
+      await saveUseCase(uc);
+    }
+  }
 
   try {
     await runAnalysis(session, saveSession);

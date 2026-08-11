@@ -71,8 +71,12 @@ export default function SessionPage() {
               <span className="badge">{session.input.inputType}</span>
             )}
             <span className="spacer" />
-            {session?.status === "complete" && (
-              <Link href={`/intake/new?session=${id}`} className="btn primary">→ Send to intake</Link>
+            {session?.linkedUseCaseId ? (
+              <Link href={`/intake/${session.linkedUseCaseId}`} className="btn primary">↩ Back to use case</Link>
+            ) : (
+              session?.status === "complete" && (
+                <Link href={`/intake/new?session=${id}`} className="btn primary">→ Send to intake</Link>
+              )
             )}
           </div>
         </div>
