@@ -1,63 +1,89 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AGENT_EMOJI, TopBar } from "./components/shared";
-import type { AgentId, DiscoveryRun } from "@/lib/agents/types";
+import { TopBar } from "./components/shared";
+import type { AnalyzeSession, CapabilityMeta, InputType } from "@/lib/capabilities/types";
 
-interface AgentMeta {
-  id: AgentId;
-  name: string;
-  tagline: string;
-  description: string;
-  order: number;
-}
-interface Stage {
-  id: string;
-  order: number;
-  name: string;
-  summary: string;
-}
-interface AgentsResponse {
-  agents: AgentMeta[];
-  valueChain: { name: string; description: string; stages: Stage[] };
+interface CapResponse {
+  capabilities: CapabilityMeta[];
+  categoryOrder: CapabilityMeta["category"][];
   mode: "live" | "demo";
 }
 
-const EXAMPLES = [
-  "Medicare Advantage onboarding & retention",
-  "Reduce avoidable contact-center calls",
-  "Improve CMS Star Ratings member experience",
+const INPUT_TYPES: { id: InputType; label: string }[] = [
+  { id: "auto", label: "Auto-detect" },
+  { id: "feature", label: "Feature idea" },
+  { id: "requirement", label: "Requirement" },
+  { id: "transcript", label: "Transcript" },
 ];
 
-const APPS = ["Aetna Health", "UnitedHealthcare", "Cigna", "MyHumana"];
+const EXAMPLE = `Members keep calling because they can't find their digital ID card in the app after enrolling. We want a "Where's my ID card?" experience that surfaces the card instantly on first login and lets them add it to their phone wallet.`;
 
-export default function Dashboard() {
+export default function Composer() {
   const router = useRouter();
-  const [meta, setMeta] = useState<AgentsResponse | null>(null);
-  const [runs, setRuns] = useState<DiscoveryRun[]>([]);
-  const [focus, setFocus] = useState("");
-  const [appTarget, setAppTarget] = useState("");
-  const [starting, setStarting] = useState(false);
+  const [meta, setMeta] = useState<CapResponse | null>(null);
+  const [sessions, setSessions] = useState<AnalyzeSession[]>([]);
+  const [text, setText] = useState("");
+  const [inputType, setInputType] = useState<InputType>("auto");
+  const [productContext, setProductContext] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set(["prd"]));
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/agents").then((r) => r.json()).then(setMeta).catch(() => {});
-    fetch("/api/discovery").then((r) => r.json()).then((d) => setRuns(d.runs ?? [])).catch(() => {});
+    fetch("/api/capabilities").then((r) => r.json()).then(setMeta).catch(() => {});
+    fetch("/api/analyze").then((r) => r.json()).then((d) => setSessions(d.sessions ?? [])).catch(() => {});
   }, []);
 
-  async function startRun() {
-    setStarting(true);
+  const byCategory = useMemo(() => {
+    const map = new Map<string, CapabilityMeta[]>();
+    for (const c of meta?.capabilities ?? []) {
+      const arr = map.get(c.category) ?? [];
+      arr.push(c);
+      map.set(c.category, arr);
+    }
+    return map;
+  }, [meta]);
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function run() {
+    setError("");
+    if (!text.trim()) {
+      setError("Paste a feature idea, requirement, or transcript first.");
+      return;
+    }
+    if (selected.size === 0) {
+      setError("Pick at least one thing to generate.");
+      return;
+    }
+    setRunning(true);
     try {
-      const res = await fetch("/api/discovery", {
+      const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ focus, appTarget }),
+        body: JSON.stringify({
+          text,
+          inputType,
+          productContext,
+          capabilityIds: [...selected],
+        }),
       });
       const data = await res.json();
-      if (data?.run?.id) router.push(`/discovery/${data.run.id}`);
+      if (data?.session?.id) router.push(`/session/${data.session.id}`);
+      else setError(data?.error || "Something went wrong.");
+    } catch {
+      setError("Network error — is the server running?");
     } finally {
-      setStarting(false);
+      setRunning(false);
     }
   }
 
@@ -66,121 +92,102 @@ export default function Dashboard() {
       <TopBar mode={meta?.mode} />
       <main className="container">
         <section className="hero">
-          <div className="eyebrow">Discovery, reimagined</div>
-          <h1>A team of AI agents that discovers where to improve your member experience.</h1>
+          <div className="eyebrow">✦ Product discovery copilot</div>
+          <h1>Paste anything. Choose what you need. Get it in seconds.</h1>
           <p className="lede">
-            Point four specialized agents at your payer&apos;s member value chain. They build domain context,
-            detect live production defects, scan the market, and analyze operational processes — then
-            synthesize everything into a ranked list of opportunities you can act on.
+            Drop in a feature idea, a written requirement, or a raw meeting transcript — then pick the
+            outputs you want: a PRD, detailed requirements, market and competitive research, process &amp;
+            domain analysis, defect foresight, or a business-value case.
           </p>
         </section>
 
-        {/* Run bar */}
+        {/* Composer */}
         <section className="section">
-          <div className="card">
-            <div className="section-head" style={{ marginBottom: 12 }}>
-              <h2>Run a discovery</h2>
-              <span className="muted">Domain grounding → parallel agents → synthesized opportunities</span>
-            </div>
-            <div className="runbar">
+          <div className="card composer">
+            <div className="composer-label">① Paste your input</div>
+            <textarea
+              className="textarea"
+              placeholder="Paste a feature idea, a requirement, or a meeting transcript…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
+              <div className="segmented">
+                {INPUT_TYPES.map((t) => (
+                  <button key={t.id} className={inputType === t.id ? "on" : ""} onClick={() => setInputType(t.id)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <input
                 className="input"
-                placeholder="Optional focus, e.g. 'Medicare Advantage onboarding'"
-                value={focus}
-                onChange={(e) => setFocus(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !starting && startRun()}
+                style={{ flex: 1, minWidth: 220 }}
+                placeholder="Optional product context, e.g. 'Medicare Advantage member app'"
+                value={productContext}
+                onChange={(e) => setProductContext(e.target.value)}
               />
-              <button className="btn primary" onClick={startRun} disabled={starting}>
-                {starting ? <span className="spinner" /> : "▶"} {starting ? "Running agents…" : "Run discovery"}
+              <button className="btn ghost" onClick={() => { setText(EXAMPLE); setInputType("requirement"); }}>
+                Try an example
               </button>
             </div>
-            <div className="runbar" style={{ marginTop: 10 }}>
-              <input
-                className="input"
-                placeholder="Ground in real reviews — member app name or App Store URL, e.g. 'Aetna Health'"
-                value={appTarget}
-                onChange={(e) => setAppTarget(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !starting && startRun()}
-              />
-            </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-faint)" }}>
-              Add an app to ground the 🐞 Defect agent in <strong>real App Store reviews</strong> with clickable
-              sources. Leave blank to see generated examples.
-            </div>
-            <div className="chips">
-              {APPS.map((a) => (
-                <span key={a} className="chip" onClick={() => setAppTarget(a)}>
-                  🐞 {a}
-                </span>
-              ))}
-              {EXAMPLES.map((ex) => (
-                <span key={ex} className="chip" onClick={() => setFocus(ex)}>
-                  {ex}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        {/* Agents */}
-        <section className="section">
-          <div className="section-head">
-            <h2>The discovery team</h2>
-            <span className="muted">{meta?.agents.length ?? 4} agents working the member value chain</span>
-          </div>
-          <div className="grid cols-4">
-            {(meta?.agents ?? []).map((a) => (
-              <div key={a.id} className="card hover agent-card">
-                <div className={`agent-icon ${a.id}`}>{AGENT_EMOJI[a.id]}</div>
-                <h3>{a.name}</h3>
-                <div className="tagline">{a.tagline}</div>
-                <p>{a.description}</p>
+            {/* Capability picker */}
+            <div className="composer-label" style={{ marginTop: 22 }}>② Choose what to generate</div>
+            {(meta?.categoryOrder ?? []).map((cat) => (
+              <div key={cat} className="cap-cat">
+                <div className="cap-cat-title">{cat}</div>
+                <div className="cap-grid">
+                  {(byCategory.get(cat) ?? []).map((c) => {
+                    const on = selected.has(c.id);
+                    return (
+                      <button key={c.id} className={`cap ${on ? "on" : ""}`} onClick={() => toggle(c.id)}>
+                        <div className="cap-top">
+                          <span className="cap-icon">{c.icon}</span>
+                          <span className="cap-name">{c.name}</span>
+                          <span className="cap-check">{on ? "✓" : ""}</span>
+                        </div>
+                        <div className="cap-blurb">{c.blurb}</div>
+                        {c.future && <div className="cap-future">→ {c.future}</div>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ))}
+
+            <div className="runbar">
+              <button className="btn primary lg" onClick={run} disabled={running}>
+                {running ? <span className="spinner" /> : "✦"} {running ? "Generating…" : "Generate"}
+              </button>
+              <span className="selcount">
+                {selected.size} selected{selected.size ? ` · ${[...selected].length} output card${selected.size === 1 ? "" : "s"}` : ""}
+              </span>
+              {error && <span style={{ color: "var(--crit)", fontSize: 13 }}>{error}</span>}
+            </div>
           </div>
         </section>
 
-        {/* Value chain */}
+        {/* Recent */}
         <section className="section">
           <div className="section-head">
-            <h2>{meta?.valueChain.name ?? "Member Value Chain"}</h2>
-            <span className="muted">Every signal and opportunity is anchored to a stage</span>
+            <h2>Recent</h2>
+            <span className="muted">{sessions.length} session{sessions.length === 1 ? "" : "s"}</span>
           </div>
-          <div className="chain">
-            {(meta?.valueChain.stages ?? []).map((s) => (
-              <div key={s.id} className="chain-stage">
-                <div className="num">{String(s.order).padStart(2, "0")}</div>
-                <h4>{s.name}</h4>
-                <p>{s.summary}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Recent runs */}
-        <section className="section">
-          <div className="section-head">
-            <h2>Recent discoveries</h2>
-            <span className="muted">{runs.length} run{runs.length === 1 ? "" : "s"}</span>
-          </div>
-          {runs.length === 0 ? (
-            <div className="empty">No discoveries yet — run one above to see the agents work.</div>
+          {sessions.length === 0 ? (
+            <div className="empty">Nothing yet — paste something above and generate your first outputs.</div>
           ) : (
-            runs.map((r) => (
-              <Link key={r.id} href={`/discovery/${r.id}`}>
-                <div className="run-row">
-                  <span className={`pill ${r.status}`}>{r.status}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>
-                      {r.focus || "General member experience improvement"}
+            sessions.map((s) => (
+              <Link key={s.id} href={`/session/${s.id}`}>
+                <div className="sess-row">
+                  <span className={`pill ${s.status}`}>{s.status}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {firstLine(s.input.text)}
                     </div>
-                    <div className="rid">{r.id}</div>
+                    <div className="rid">{s.capabilityIds.length} capabilities · {s.id}</div>
                   </div>
-                  <div style={{ textAlign: "right", color: "var(--text-faint)", fontSize: 12 }}>
-                    <div>
-                      {r.opportunities?.length ?? 0} opportunities · {r.signals?.length ?? 0} signals
-                    </div>
-                    <div>{new Date(r.createdAt).toLocaleString()}</div>
+                  <div style={{ color: "var(--ink-faint)", fontSize: 12, whiteSpace: "nowrap" }}>
+                    {new Date(s.createdAt).toLocaleString()}
                   </div>
                 </div>
               </Link>
@@ -189,12 +196,14 @@ export default function Dashboard() {
         </section>
 
         <footer className="footer">
-          <div>
-            AI Discovery pilot · {meta?.mode === "live" ? "Live agents powered by Claude" : "Demo mode with seed data"} ·
-            Built to be extended — see README for the roadmap to production.
-          </div>
+          AI Discovery · {meta?.mode === "live" ? "Live outputs powered by Claude" : "Demo mode — illustrative outputs; add an API key for live analysis"}.
         </footer>
       </main>
     </>
   );
+}
+
+function firstLine(text: string): string {
+  const l = (text || "").trim().split(/\r?\n/)[0] || "Untitled";
+  return l.length > 90 ? l.slice(0, 87) + "…" : l;
 }

@@ -29,16 +29,19 @@ Open **http://localhost:3000**.
 
 ## 3. Use it
 
-1. (Optional) Type a **focus**, e.g. `Medicare Advantage onboarding`.
-2. (Optional but recommended) In the second box, add a **member app** to ground the
-   Defect agent in real reviews — e.g. `Aetna Health`, or paste an App Store URL, or an app id.
-3. Click **Run discovery**.
+1. **Paste your input** — a feature idea, a written requirement, or a meeting transcript.
+   (Or click **Try an example** to prefill one.)
+2. (Optional) Set the input type and add **product context**, e.g. `Medicare Advantage member app`.
+3. **Choose what to generate** — tick any capabilities: PRD, Detailed Requirements, Market /
+   Competitive / Feedback research, Process & Domain Analysis, Defect Foresight, or Business Value
+   (quantifiable / qualitative).
+4. Click **Generate**.
 
-You'll get a domain brief, the agent pipeline, a ranked list of opportunities, and — when you
-provided an app — defect signals that cite **real App Store reviews** with clickable links.
+You'll get one clean output card per capability — with sections, bullets, and tables — plus your
+input echoed for reference.
 
-Everything works with **no API key** (demo mode for the Market/Process agents + seed defects;
-real reviews when an app is provided).
+Everything works with **no API key** (demo mode returns strong illustrative templates with your
+input woven in). Add a key for live, Claude-generated analysis.
 
 ## 4. Prove the "real data" grounding (no UI needed)
 

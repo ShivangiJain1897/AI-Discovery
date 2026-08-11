@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Discovery — Payer Member Value Chain",
+  title: "AI Discovery — Paste anything, pick what you need",
   description:
-    "Reimagining product discovery for payer organizations with a team of specialized AI agents: domain, defect detection, market analysis, and process analysis.",
+    "A product discovery copilot: paste a feature idea, requirement, or transcript, then generate a PRD, requirements, market/competitive/feedback research, process & domain analysis, defect foresight, or a business-value case.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
