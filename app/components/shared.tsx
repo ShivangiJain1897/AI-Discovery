@@ -17,7 +17,8 @@ export function StatusPill({ status }: { status: IntakeStatus }) {
 export function TopBar({ mode }: { mode?: "live" | "demo" }) {
   const pathname = usePathname() || "/";
   const onIntake = pathname.startsWith("/intake");
-  const onDiscovery = !onIntake;
+  const onStudio = pathname.startsWith("/studio");
+  const onDiscovery = !onIntake && !onStudio;
   return (
     <div className="topbar">
       <div className="container topbar-inner">
@@ -34,6 +35,9 @@ export function TopBar({ mode }: { mode?: "live" | "demo" }) {
           </Link>
           <Link href="/intake" className={`topnav-link ${onIntake ? "on" : ""}`}>
             Intake
+          </Link>
+          <Link href="/studio" className={`topnav-link ${onStudio ? "on" : ""}`}>
+            Studio
           </Link>
         </nav>
         <span className="spacer" />

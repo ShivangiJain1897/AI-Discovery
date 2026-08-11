@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     runs: [],
     linkedUseCaseId: typeof body.linkedUseCaseId === "string" ? body.linkedUseCaseId : undefined,
   };
-  saveSession(session);
+  await saveSession(session);
 
   // Link this discovery back to the intake use case it came from, if any.
   if (session.linkedUseCaseId) {
@@ -77,13 +77,13 @@ export async function POST(req: Request) {
   } catch (err) {
     session.status = "error";
     session.finishedAt = Date.now();
-    saveSession(session);
+    await saveSession(session);
     return NextResponse.json(
       { session, error: err instanceof Error ? err.message : String(err) },
       { status: 500 }
     );
   }
 
-  saveSession(session);
+  await saveSession(session);
   return NextResponse.json({ session });
 }

@@ -7,7 +7,12 @@ Two connected modes for product teams:
   analysis, or a business-value case.
 - **Intake** — a team tracker. Promote a discovered use case into a tracked record with
   stakeholders, data, and platform; the tracker **flags similar/duplicate use cases** and lets you
-  **compare** them side by side. Persists to disk.
+  **compare** them side by side. Persists to a data store.
+- **Studio** — see and edit the **prompt behind every agent** (each capability's system + task
+  prompt). Edits are saved and take effect immediately; reset to default anytime.
+
+**Deploying it for a few people?** See [`DEPLOY.md`](./DEPLOY.md) — Vercel + a hosted Postgres +
+an optional shared password, ~15 minutes, no code changes.
 
 It runs out of the box in **demo mode** (illustrative, deterministic outputs, no API key) and
 switches to **live outputs powered by Claude** the moment you add an API key. Duplicate detection
@@ -174,9 +179,21 @@ detection).
 
 ---
 
+## Data store
+
+All persistence goes through one abstraction (`lib/storage/collection.ts`):
+
+- **Local dev:** no setup — data persists to `.data/*.json`.
+- **Production:** set `DATABASE_URL` and it uses **Postgres** (tables auto-create; each row a JSONB
+  document). This is what makes the app deployable — a cloud host's filesystem is ephemeral.
+
+Collections: `use_cases` (intake), `sessions` (discovery), `prompt_overrides` (Studio edits).
+
 ## Notes
 
-- **Stack:** Next.js (App Router) + React + TypeScript, hand-written CSS design system, optional
-  `@anthropic-ai/sdk`. In-memory store for the pilot.
+- **Stack:** Next.js (App Router) + React + TypeScript, hand-written CSS, optional
+  `@anthropic-ai/sdk`, `pg` for Postgres. Storage swappable via `DATABASE_URL`.
+- **Auth:** optional shared-password gate via `APP_PASSWORD` (`middleware.ts`); swap for real SSO
+  when productionizing.
 - **Security:** pinned to a patched Next.js 15.x. `npm audit` may still flag `sharp`/libvips CVEs —
   a transitive **optional** dependency this app doesn't use.
