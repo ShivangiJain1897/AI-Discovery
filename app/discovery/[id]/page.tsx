@@ -80,6 +80,11 @@ export default function DiscoveryDetail() {
           <div className="section-head" style={{ alignItems: "center" }}>
             <h2 style={{ fontSize: 26 }}>{run?.focus || "General member experience improvement"}</h2>
             {run && <span className={`pill ${run.status}`}>{run.status}</span>}
+            {run?.appTarget && (
+              <span className="badge" title="Defect agent grounded in this app's reviews">
+                🐞 {run.appTarget}
+              </span>
+            )}
           </div>
         </div>
 
@@ -93,13 +98,19 @@ export default function DiscoveryDetail() {
           </div>
           {["domain", "defect", "market", "process"].map((aid) => {
             const ar = run?.agentRuns.find((a) => a.agent === aid);
-            const st = ar?.status ?? (running ? "running" : "pending");
             const count = aid === "domain" ? (run?.brief ? 1 : 0) : ar?.signals.length ?? 0;
+            const grounded = ar?.grounding?.kind === "live-reviews";
             return (
               <div key={aid} className={`agent-status ${ar?.status ?? ""}`}>
                 {!ar && running ? <span className="spinner" /> : <span className="st-dot" />}
                 <span style={{ fontSize: 16 }}>{AGENT_EMOJI[aid as AgentId]}</span>
                 <span className="st-name">{meta?.agents.find((a) => a.id === aid)?.name ?? aid}</span>
+                {aid === "defect" && ar?.grounding && (
+                  <span className="badge" style={{ marginLeft: 8, fontSize: 11 }} title={ar.grounding.detail}>
+                    <span className="dot" style={{ background: grounded ? "var(--good)" : "var(--warn)" }} />
+                    {grounded ? "Grounded · real reviews" : "Generated"}
+                  </span>
+                )}
                 <span className="spacer" />
                 <span className="st-count">
                   {!ar
@@ -115,6 +126,30 @@ export default function DiscoveryDetail() {
               </div>
             );
           })}
+          {(() => {
+            const g = run?.agentRuns.find((a) => a.agent === "defect")?.grounding;
+            return g ? (
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 12.5,
+                  color: g.kind === "live-reviews" ? "var(--good)" : "var(--text-faint)",
+                  paddingLeft: 4,
+                }}
+              >
+                {g.kind === "live-reviews" ? "🔗 " : "ⓘ "}
+                {g.detail}
+                {g.app?.url && (
+                  <>
+                    {" "}
+                    <a href={g.app.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)" }}>
+                      view app ↗
+                    </a>
+                  </>
+                )}
+              </div>
+            ) : null;
+          })()}
         </section>
 
         {/* Domain brief */}
@@ -276,6 +311,7 @@ export default function DiscoveryDetail() {
 }
 
 function SignalRow({ s, stageName }: { s: Signal; stageName: (id: string) => string }) {
+  const grounded = s.sources && s.sources.length > 0;
   return (
     <div className="signal">
       <div className="signal-head">
@@ -286,13 +322,33 @@ function SignalRow({ s, stageName }: { s: Signal; stageName: (id: string) => str
       <div className="tags" style={{ marginTop: 6 }}>
         <span className="tag">{stageName(s.stageId)}</span>
         <span className="tag">conf {Math.round(s.confidence * 100)}%</span>
+        {grounded && <span className="tag" style={{ color: "var(--good)" }}>✓ {s.sources!.length} real sources</span>}
       </div>
-      {s.evidence.length > 0 && (
-        <ul className="evidence">
-          {s.evidence.map((e, i) => (
-            <li key={i}>{e}</li>
+      {grounded ? (
+        <div className="sources">
+          {s.sources!.map((src, i) => (
+            <div key={i} className="source">
+              <div className="source-head">
+                <span className="source-label">{src.label}</span>
+                {src.url && (
+                  <a className="source-link" href={src.url} target="_blank" rel="noopener noreferrer">
+                    open ↗
+                  </a>
+                )}
+              </div>
+              {src.quote && <div className="source-quote">“{src.quote}”</div>}
+              {src.meta && <div className="source-meta">{src.meta}</div>}
+            </div>
           ))}
-        </ul>
+        </div>
+      ) : (
+        s.evidence.length > 0 && (
+          <ul className="evidence">
+            {s.evidence.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        )
       )}
     </div>
   );

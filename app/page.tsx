@@ -29,14 +29,16 @@ const EXAMPLES = [
   "Medicare Advantage onboarding & retention",
   "Reduce avoidable contact-center calls",
   "Improve CMS Star Ratings member experience",
-  "Digital self-service adoption for new members",
 ];
+
+const APPS = ["Aetna Health", "UnitedHealthcare", "Cigna", "MyHumana"];
 
 export default function Dashboard() {
   const router = useRouter();
   const [meta, setMeta] = useState<AgentsResponse | null>(null);
   const [runs, setRuns] = useState<DiscoveryRun[]>([]);
   const [focus, setFocus] = useState("");
+  const [appTarget, setAppTarget] = useState("");
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function Dashboard() {
       const res = await fetch("/api/discovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ focus }),
+        body: JSON.stringify({ focus, appTarget }),
       });
       const data = await res.json();
       if (data?.run?.id) router.push(`/discovery/${data.run.id}`);
@@ -92,7 +94,25 @@ export default function Dashboard() {
                 {starting ? <span className="spinner" /> : "▶"} {starting ? "Running agents…" : "Run discovery"}
               </button>
             </div>
+            <div className="runbar" style={{ marginTop: 10 }}>
+              <input
+                className="input"
+                placeholder="Ground in real reviews — member app name or App Store URL, e.g. 'Aetna Health'"
+                value={appTarget}
+                onChange={(e) => setAppTarget(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !starting && startRun()}
+              />
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-faint)" }}>
+              Add an app to ground the 🐞 Defect agent in <strong>real App Store reviews</strong> with clickable
+              sources. Leave blank to see generated examples.
+            </div>
             <div className="chips">
+              {APPS.map((a) => (
+                <span key={a} className="chip" onClick={() => setAppTarget(a)}>
+                  🐞 {a}
+                </span>
+              ))}
               {EXAMPLES.map((ex) => (
                 <span key={ex} className="chip" onClick={() => setFocus(ex)}>
                   {ex}

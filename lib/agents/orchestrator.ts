@@ -34,7 +34,7 @@ export async function runDiscovery(
   run.status = "running";
   onProgress?.(run);
 
-  const ctx: DiscoveryContext = { valueChainId: "member", focus: run.focus };
+  const ctx: DiscoveryContext = { valueChainId: "member", focus: run.focus, appTarget: run.appTarget };
 
   // 1. Domain grounding (sequential — its brief feeds the others).
   const domainResult = await runAgent("domain", async () => {
@@ -50,7 +50,10 @@ export async function runDiscovery(
 
   // 2. Signal agents in parallel, each grounded by the domain brief.
   const [defect, market, process] = await Promise.all([
-    runAgent("defect", async () => ({ signals: await runDefectAgent(ctx) })),
+    runAgent("defect", async () => {
+      const { signals, grounding } = await runDefectAgent(ctx);
+      return { signals, grounding };
+    }),
     runAgent("market", async () => ({ signals: await runMarketAgent(ctx) })),
     runAgent("process", async () => ({ signals: await runProcessAgent(ctx) })),
   ]);
@@ -70,12 +73,12 @@ export async function runDiscovery(
 
 async function runAgent(
   agent: AgentId,
-  fn: () => Promise<{ signals: Signal[]; brief?: AgentRunResult["brief"] }>
+  fn: () => Promise<{ signals: Signal[]; brief?: AgentRunResult["brief"]; grounding?: AgentRunResult["grounding"] }>
 ): Promise<AgentRunResult> {
   const startedAt = Date.now();
   try {
-    const { signals, brief } = await fn();
-    return { agent, status: "complete", signals, brief, startedAt, finishedAt: Date.now() };
+    const { signals, brief, grounding } = await fn();
+    return { agent, status: "complete", signals, brief, grounding, startedAt, finishedAt: Date.now() };
   } catch (err) {
     return {
       agent,

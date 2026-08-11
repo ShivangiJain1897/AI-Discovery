@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "reviews:probe": "node scripts/probe-reviews.ts",
+    "test:grounding": "node scripts/test-grounding.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

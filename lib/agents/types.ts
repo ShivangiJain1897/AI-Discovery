@@ -15,8 +15,37 @@ export interface DiscoveryContext {
   valueChainId: "member";
   /** Optional free-text focus, e.g. "Medicare Advantage onboarding". */
   focus?: string;
+  /**
+   * Optional member app to ground the Defect agent in real reviews. Accepts an
+   * app name ("Aetna Health"), an App Store URL, or a numeric app id.
+   */
+  appTarget?: string;
   /** Domain brief produced by the Domain Agent; available to other agents. */
   domainBrief?: DomainBrief;
+}
+
+/** Describes what real source (if any) grounded an agent's output. */
+export interface Grounding {
+  /** "live-reviews" = real app-store data; "generated" = model/seed only. */
+  kind: "live-reviews" | "generated";
+  detail: string;
+  /** For live-reviews: the resolved app and how many reviews were analyzed. */
+  app?: { id: string; name: string; url?: string; reviewsAnalyzed: number };
+}
+
+/**
+ * A real, clickable source backing a signal. This is what makes a signal
+ * auditable: a skeptic can open the link and read the actual member review.
+ */
+export interface EvidenceSource {
+  /** e.g. "App Store review · ★1 · v4.2.1". */
+  label: string;
+  /** Verbatim quote from the source (truncated). */
+  quote?: string;
+  /** Deep link to the original source, when available. */
+  url?: string;
+  /** Extra metadata: author, date, rating. */
+  meta?: string;
 }
 
 /** A single observation an agent surfaces, anchored to a value-chain stage. */
@@ -29,6 +58,11 @@ export interface Signal {
   severity: Severity;
   /** Human-readable evidence / source for the observation. */
   evidence: string[];
+  /**
+   * Real, citable sources. When present, the signal is GROUNDED — it traces to
+   * actual external data (e.g. app-store reviews) rather than model generation.
+   */
+  sources?: EvidenceSource[];
   /** Optional numeric confidence 0..1. */
   confidence: number;
   /** KPI ids this signal most affects. */
@@ -74,6 +108,8 @@ export interface AgentRunResult {
   signals: Signal[];
   /** For the domain agent only. */
   brief?: DomainBrief;
+  /** How this agent's output was sourced (real data vs generated). */
+  grounding?: Grounding;
   error?: string;
   startedAt: number;
   finishedAt: number;
@@ -83,6 +119,8 @@ export interface DiscoveryRun {
   id: string;
   valueChainId: "member";
   focus?: string;
+  /** Member app targeted for review-grounded defect detection, if any. */
+  appTarget?: string;
   status: DiscoveryStatus;
   mode: "live" | "demo";
   createdAt: number;

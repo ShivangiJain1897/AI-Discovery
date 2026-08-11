@@ -14,9 +14,11 @@ export async function GET() {
 /** POST /api/discovery — start a new discovery run and return the completed run. */
 export async function POST(req: Request) {
   let focus = "";
+  let appTarget = "";
   try {
     const body = await req.json();
     focus = typeof body?.focus === "string" ? body.focus : "";
+    appTarget = typeof body?.appTarget === "string" ? body.appTarget : "";
   } catch {
     // empty body is fine
   }
@@ -25,6 +27,7 @@ export async function POST(req: Request) {
     id: newRunId(),
     valueChainId: "member",
     focus: focus || undefined,
+    appTarget: appTarget || undefined,
     status: "queued",
     mode: "demo",
     createdAt: Date.now(),

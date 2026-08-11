@@ -8,6 +8,11 @@ This repo is a **runnable pilot**. It works out of the box in **demo mode** (ric
 seed data, no API key needed) and switches to **live agents powered by Claude** the moment you
 add an API key.
 
+> **It's also grounded in real data.** Point the Defect agent at a member app (name or App Store
+> URL) and it fetches **real App Store reviews**, clusters the real member complaints into
+> stage-anchored defects, and cites the actual reviews — clickable, verifiable. No API key needed
+> for this; see [Grounding in real data](#grounding-in-real-data-what-makes-it-real).
+
 ---
 
 ## The idea
@@ -59,6 +64,9 @@ Open the app, type an optional focus (e.g. *"Medicare Advantage onboarding"*), a
 **Run discovery**. You'll watch the agents report in, see the domain brief, and get a ranked
 list of opportunities with the evidence behind each.
 
+In the run form, add a **member app** (e.g. `Aetna Health`) to ground the Defect agent in real
+reviews. Every defect it reports will carry clickable App Store review citations.
+
 ### Enable live agents (Claude)
 
 ```bash
@@ -68,6 +76,54 @@ cp .env.example .env.local
 
 With a key present, the same code path calls **Claude** instead of returning seed data — the
 UI badge flips from **Demo mode** to **Live · Claude**. No other change required.
+
+---
+
+## Grounding in real data (what makes it real)
+
+The Defect agent doesn't imagine defects — when you give it a member app, it grounds in **real,
+public App Store reviews**:
+
+1. **Resolve** the app from a name, App Store URL, or numeric id (Apple's public search/lookup).
+2. **Fetch** recent customer reviews (Apple's public reviews RSS — no key, no scraping).
+3. **Cluster** the negative reviews into stage-anchored defect signals — with **Claude** if a key
+   is present, otherwise a deterministic keyword→stage mapping. Either way, **the citations are
+   real**: each signal links to the actual reviews that formed it, so the model can choose the
+   evidence but can't fabricate a source.
+4. **Fall back honestly**: if no app is given or reviews can't be reached, the agent says so and
+   shows clearly-labeled generated examples — it never presents made-up sources as real.
+
+**Prove it live in one command** (needs outbound access to `itunes.apple.com`):
+
+```bash
+npm run reviews:probe -- "Aetna Health"
+# or an App Store URL, or a numeric app id
+```
+
+You'll see the resolved app, how many real reviews were fetched, and the grounded defect signals
+with quoted, linked citations.
+
+**Tests** (offline, validate parsing against Apple's real schema + clustering):
+
+```bash
+npm run test:grounding
+```
+
+> Note: some locked-down CI/sandbox networks block `itunes.apple.com`. There, live fetch fails and
+> the agent falls back to generated examples (by design). On a normal machine it fetches real data.
+
+This is the concept getting **real**, measured against a simple bar:
+
+| Test of "real" | Status |
+|---|---|
+| **Grounded** — signals cite real external sources | ✅ Defect agent (real reviews) |
+| **Auditable** — click a signal → see the raw evidence | ✅ every source is a working link |
+| **Reproducible** — traceable, stable output | ✅ deterministic parse + cluster |
+| **Validated** — an expert/known-issues list confirms the top findings | ◻️ next: design-partner review |
+| **Deployed** — someone else runs it on their data | ◻️ next: host it, hand it to a PM |
+
+The Market and Process agents are the next to ground (public web research + CMS Star/CAHPS data
+for Market; SOP/process-doc ingestion for Process) — the same pattern applies.
 
 ---
 
@@ -90,16 +146,24 @@ lib/
     provider.ts                LlmProvider interface + auto-selection + JSON extraction
     anthropic.ts               Live provider (Claude)
     mock.ts                    Demo provider (deterministic payer seed data)
+  sources/
+    app-reviews.ts             Real Apple App Store review client (resolve + fetch)
+    review-cluster.ts          Deterministic keyword→stage clustering (grounded, no key)
   agents/
-    types.ts                   Signal, Opportunity, DiscoveryRun, DomainBrief
+    types.ts                   Signal, EvidenceSource, Grounding, Opportunity, DiscoveryRun
     domain-agent.ts            🧭 grounds the run
-    defect-agent.ts            🐞 signal agent
+    defect-agent.ts            🐞 grounded in real reviews (LLM or deterministic) + fallback
+    defect-grounded.ts         🐞 LLM clustering of real reviews with real citations
     market-agent.ts            📈 signal agent
     process-agent.ts           ⚙️ signal agent
-    signal-agent.ts            Shared runner for the three signal agents
+    signal-agent.ts            Shared runner for the (ungrounded) signal agents
     orchestrator.ts            Pipeline + deterministic, explainable synthesizer
     registry.ts                Agent metadata for the UI
   store.ts                     In-memory run store (swap for a DB — see roadmap)
+
+scripts/
+  probe-reviews.ts             CLI: prove real-review grounding in one command
+  test-grounding.ts            Offline tests: Apple-schema parsing + clustering
 ```
 
 **Design choices that make this extensible:**
@@ -122,8 +186,8 @@ lib/
 The pilot proves the shape. To take it to production for a payer:
 
 **1. Feed the agents real evidence (biggest lever).**
-- Defect agent → app-store review APIs, Zendesk/Salesforce ticket clusters, status-page
-  incidents, RUM/error telemetry, session-replay signals.
+- Defect agent → ✅ **done for App Store reviews.** Next: Google Play reviews, Zendesk/Salesforce
+  ticket clusters, status-page incidents, RUM/error telemetry, session-replay signals.
 - Market agent → competitor teardown feeds, analyst notes, CMS Star/CAHPS data, transparency
   machine-readable files, web research (grounded retrieval).
 - Process agent → SOP/Confluence ingestion, process-mining exports, agent-desktop telemetry,
