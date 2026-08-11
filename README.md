@@ -55,6 +55,8 @@ when defect + market + process all point at the same stage, that's a top-priorit
 
 ## Quick start
 
+> New here? [`SETUP.md`](./SETUP.md) has step-by-step run instructions and troubleshooting.
+
 ```bash
 npm install
 npm run dev          # http://localhost:3000
