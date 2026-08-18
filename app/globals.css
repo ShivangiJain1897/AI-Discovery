@@ -750,6 +750,190 @@ table.otable tr:last-child td {
   font-size: 13px;
 }
 
+/* ---------- AI Intake Analysis ---------- */
+.analysis {
+  border: 1px solid rgba(109, 94, 252, 0.28);
+}
+.analysis-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.analysis-head h3 {
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.provisional {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--high);
+  background: rgba(247, 103, 7, 0.14);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.guardrail {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-top: 4px;
+}
+.analysis-body {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.score-header {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 15px;
+  background: linear-gradient(120deg, rgba(109, 94, 252, 0.1), rgba(0, 179, 255, 0.06));
+  border: 1px solid var(--border);
+}
+.score-num {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(120deg, var(--brand), var(--brand-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.score-cap {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 4px;
+  text-transform: capitalize;
+}
+.score-formula {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  font-family: ui-monospace, monospace;
+}
+.afield .atext,
+.atext {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.asec-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+.asec-label .hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+table.otable.rice td {
+  vertical-align: top;
+  font-size: 12.5px;
+}
+.conf {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.conf.low { color: var(--crit); background: rgba(250, 82, 82, 0.12); }
+.conf.medium { color: var(--warn); background: rgba(245, 159, 0, 0.14); }
+.conf.high { color: var(--good); background: rgba(18, 184, 134, 0.14); }
+.risk {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+.risk.low { color: var(--good); background: rgba(18, 184, 134, 0.14); }
+.risk.moderate { color: var(--high); background: rgba(247, 103, 7, 0.14); }
+.risk.high { color: var(--crit); background: rgba(250, 82, 82, 0.14); }
+ul.mini {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+ul.mini li {
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 4px 0 4px 16px;
+  position: relative;
+  line-height: 1.45;
+}
+ul.mini li::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+  color: var(--brand);
+}
+.tagi {
+  font-size: 10px;
+  color: var(--good);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 5px;
+  margin-left: 4px;
+}
+.tagi.warn {
+  color: var(--high);
+}
+.human-controls {
+  border: 1px solid rgba(109, 94, 252, 0.3);
+  background: rgba(109, 94, 252, 0.05);
+  border-radius: 15px;
+  padding: 16px;
+}
+.hc-box {
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+.decision-badge {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(18, 184, 134, 0.1);
+  border: 1px solid rgba(18, 184, 134, 0.3);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.hist {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12.5px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.histsrc {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+.histsrc.ai { color: var(--brand); background: rgba(109, 94, 252, 0.12); }
+.histsrc.human { color: var(--good); background: rgba(18, 184, 134, 0.12); }
+
 /* ---------- Intake tracker ---------- */
 .toolbar {
   display: flex;

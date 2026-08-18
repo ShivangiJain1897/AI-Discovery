@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusPill, TopBar, useCurrentUser } from "../../components/shared";
+import AnalysisPanel from "./AnalysisPanel";
 import type { SimilarMatch, UseCase } from "@/lib/intake/types";
 import { INTAKE_STATUSES } from "@/lib/intake/types";
 
@@ -147,7 +148,12 @@ export default function UseCaseDetail() {
           </div>
         </div>
 
-        <div className="grid cols-2" style={{ marginTop: 20, alignItems: "start" }}>
+        {/* AI Intake Analysis (provisional) — the triage copilot */}
+        <div style={{ marginTop: 20 }}>
+          <AnalysisPanel uc={uc} name={name} onChanged={load} />
+        </div>
+
+        <div className="grid cols-2" style={{ marginTop: 16, alignItems: "start" }}>
           {/* Left: details */}
           <div className="card">
             <div className="composer-label" style={{ marginBottom: 10 }}>Problem statement</div>

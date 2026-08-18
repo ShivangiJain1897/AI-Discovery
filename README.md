@@ -5,9 +5,12 @@ Two connected modes for product teams:
 - **Discovery** — a copilot. Paste anything (a feature idea, a written requirement, or a raw
   meeting transcript) and pick exactly what you want generated: a PRD, requirements, research,
   analysis, or a business-value case.
-- **Intake** — a team tracker. Promote a discovered use case into a tracked record with
-  stakeholders, data, and platform; the tracker **flags similar/duplicate use cases** and lets you
-  **compare** them side by side. Persists to a data store.
+- **Intake** — a team tracker with an **AI triage copilot**. Promote a discovered use case into a
+  tracked record; the tracker **flags similar/duplicate use cases**, lets you **compare** them, and
+  the **Intake Analyst** produces a provisional idea record + **RICE-A score** (with per-factor
+  evidence, assumptions, confidence, and improving questions), a risk overlay, and AI-fit — while
+  **humans override the score and make the decision** (versioned score history). Persists to a data
+  store.
 - **Studio** — see and edit the **prompt behind every agent** (each capability's system + task
   prompt). Edits are saved and take effect immediately; reset to default anytime.
 

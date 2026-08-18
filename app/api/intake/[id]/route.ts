@@ -70,6 +70,32 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     item.contributions = [...item.contributions, c];
   }
 
+  // Guardrail: a human can override the AI score (with a recorded rationale).
+  const hs = (body as { humanScore?: { score?: number; by?: string; rationale?: string } }).humanScore;
+  if (hs && typeof hs.score === "number") {
+    item.humanScore = {
+      score: hs.score,
+      by: (hs.by || "Anonymous").trim(),
+      rationale: (hs.rationale || "").trim(),
+      at: Date.now(),
+    };
+    item.scoreHistory = [
+      ...(item.scoreHistory ?? []),
+      { at: Date.now(), stage: "Human override", score: hs.score, source: "human", by: item.humanScore.by, note: item.humanScore.rationale },
+    ];
+  }
+
+  // Guardrail: humans make the triage/solution decision.
+  const dec = (body as { decision?: { decision?: string; by?: string; rationale?: string } }).decision;
+  if (dec && (dec.decision || "").trim()) {
+    item.decision = {
+      decision: dec.decision!.trim(),
+      by: (dec.by || "Anonymous").trim(),
+      rationale: (dec.rationale || "").trim(),
+      at: Date.now(),
+    };
+  }
+
   item.updatedAt = Date.now();
   await saveUseCase(item);
   return NextResponse.json({ item });
