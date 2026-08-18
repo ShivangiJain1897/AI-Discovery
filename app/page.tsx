@@ -45,7 +45,7 @@ function Composer() {
 
   useEffect(() => {
     fetch("/api/capabilities").then((r) => r.json()).then(setMeta).catch(() => {});
-    fetch("/api/analyze").then((r) => r.json()).then((d) => setSessions(d.sessions ?? [])).catch(() => {});
+    fetch("/api/analyze").then((r) => r.json()).then((d) => setSessions(Array.isArray(d.sessions) ? d.sessions : [])).catch(() => {});
   }, []);
 
   // Prefill when launched from an intake use case (the intake → discovery loop).

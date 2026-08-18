@@ -16,7 +16,7 @@ export default function IntakeTracker() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetch("/api/intake").then((r) => r.json()).then((d) => setItems(d.items ?? [])).catch(() => {});
+    fetch("/api/intake").then((r) => r.json()).then((d) => setItems(Array.isArray(d.items) ? d.items : [])).catch(() => {});
     fetch("/api/capabilities").then((r) => r.json()).then((d) => setMode(d.mode)).catch(() => {});
   }, []);
 

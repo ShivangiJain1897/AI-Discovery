@@ -13,7 +13,7 @@ const VALID_TYPES = new Set<InputType>(["auto", "feature", "requirement", "trans
 
 /** GET /api/analyze — list sessions. */
 export async function GET() {
-  return NextResponse.json({ sessions: listSessions() });
+  return NextResponse.json({ sessions: await listSessions() });
 }
 
 /** POST /api/analyze — run selected capabilities against pasted input. */
