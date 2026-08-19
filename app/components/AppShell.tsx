@@ -77,8 +77,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </button>
 
         <nav className="sb-nav">
-          <SbLink href="/" icon="✦" label="Discovery" active={isActive("/") && !pathname.startsWith("/session")} collapsed={collapsed} />
-          <SbLink href="/intake" icon="◷" label="Intake" active={isActive("/intake")} collapsed={collapsed} />
+          <SbLink href="/intake" icon="◷" label="Intake tracker" active={isActive("/intake")} collapsed={collapsed} />
         </nav>
 
         {/* Pinned */}
