@@ -1,34 +1,24 @@
 import { getProvider } from "../llm/provider";
 import { runCapability } from "./run";
-import type { AnalyzeSession, CapabilityRun } from "./types";
+import type { AnalyzeInput, CapabilityRun, ChatTurn } from "./types";
 
 /**
- * Runs all selected capabilities for a session, in parallel. Each capability
- * is independent, so one failing doesn't sink the others.
+ * Runs one conversational turn: the selected capabilities against the user's
+ * message, with the prior conversation as context so follow-ups build on
+ * earlier work. Each capability is independent — one failing doesn't sink the
+ * others.
  */
-export async function runAnalysis(
-  session: AnalyzeSession,
-  onProgress?: (s: AnalyzeSession) => void
-): Promise<AnalyzeSession> {
-  const provider = await getProvider();
-  session.mode = provider.mode;
-  session.status = "running";
-  onProgress?.(session);
-
-  const runs = await Promise.all(
-    session.capabilityIds.map((id) => runOne(id, session))
-  );
-  session.runs = runs;
-  session.status = runs.some((r) => r.status === "complete") ? "complete" : "error";
-  session.finishedAt = Date.now();
-  onProgress?.(session);
-  return session;
+export async function runTurn(
+  input: AnalyzeInput,
+  capabilityIds: string[]
+): Promise<CapabilityRun[]> {
+  return Promise.all(capabilityIds.map((id) => runOne(id, input)));
 }
 
-async function runOne(capabilityId: string, session: AnalyzeSession): Promise<CapabilityRun> {
+async function runOne(capabilityId: string, input: AnalyzeInput): Promise<CapabilityRun> {
   const startedAt = Date.now();
   try {
-    const output = await runCapability(capabilityId, session.input);
+    const output = await runCapability(capabilityId, input);
     return { capabilityId, status: "complete", output, startedAt, finishedAt: Date.now() };
   } catch (err) {
     return {
@@ -39,4 +29,24 @@ async function runOne(capabilityId: string, session: AnalyzeSession): Promise<Ca
       finishedAt: Date.now(),
     };
   }
+}
+
+/** Resolve the active mode without running anything. */
+export async function currentMode(): Promise<"live" | "demo"> {
+  return (await getProvider()).mode;
+}
+
+/**
+ * Compact, readable summary of the thread so far, fed to the next turn as
+ * context. Keeps follow-ups grounded without resending everything verbatim.
+ */
+export function buildHistory(turns: ChatTurn[]): string {
+  const parts: string[] = [];
+  for (const t of turns) {
+    parts.push(`User: ${t.userText.slice(0, 500)}`);
+    for (const r of t.runs) {
+      if (r.output) parts.push(`Assistant (${r.capabilityId}): ${r.output.title} — ${r.output.summary}`);
+    }
+  }
+  return parts.join("\n").slice(0, 6000);
 }

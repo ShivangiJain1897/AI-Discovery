@@ -218,7 +218,7 @@ function Composer() {
                     <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {firstLine(s.input.text)}
                     </div>
-                    <div className="rid">{s.capabilityIds.length} capabilities · {s.id}</div>
+                    <div className="rid">{(s.turns?.length ?? 0) || 1} turn{((s.turns?.length ?? 0) || 1) === 1 ? "" : "s"} · {s.id}</div>
                   </div>
                   <div style={{ color: "var(--ink-faint)", fontSize: 12, whiteSpace: "nowrap" }}>
                     {new Date(s.createdAt).toLocaleString()}

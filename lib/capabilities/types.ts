@@ -20,6 +20,8 @@ export interface AnalyzeInput {
   inputType: InputType;
   /** Optional product/app context, e.g. "Payer member portal (Medicare Advantage)". */
   productContext?: string;
+  /** Conversation so far (prior turns), so follow-ups build on earlier work. */
+  history?: string;
 }
 
 export interface CapabilityMeta {
@@ -68,15 +70,27 @@ export interface CapabilityRun {
   finishedAt: number;
 }
 
+/** One conversational turn: a user message + the assistant's capability outputs. */
+export interface ChatTurn {
+  id: string;
+  userText: string;
+  capabilityIds: string[];
+  runs: CapabilityRun[];
+  createdAt: number;
+}
+
 export interface AnalyzeSession {
   id: string;
   input: AnalyzeInput;
-  capabilityIds: string[];
+  /** The conversation thread. turns[0] is the opening message. */
+  turns: ChatTurn[];
   status: SessionStatus;
   mode: "live" | "demo";
   createdAt: number;
   finishedAt?: number;
-  runs: CapabilityRun[];
   /** Set when this discovery was launched from an intake use case. */
   linkedUseCaseId?: string;
+  /** Legacy single-shot fields (kept for older sessions). */
+  capabilityIds?: string[];
+  runs?: CapabilityRun[];
 }

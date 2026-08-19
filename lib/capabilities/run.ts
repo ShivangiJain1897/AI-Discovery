@@ -30,8 +30,9 @@ export async function runCapability(
   // Effective prompt = Studio override, or the default. Editable at runtime.
   const def = await getEffectivePrompt(capabilityId);
   const prompt = `INPUT TYPE: ${input.inputType}
-${input.productContext ? `PRODUCT CONTEXT: ${input.productContext}\n` : ""}
-INPUT:
+${input.productContext ? `PRODUCT CONTEXT: ${input.productContext}\n` : ""}${
+    input.history ? `CONVERSATION SO FAR (build on this; the user is following up):\n${input.history}\n\n` : ""
+  }INPUT (the user's latest message):
 """
 ${input.text.slice(0, 8000)}
 """

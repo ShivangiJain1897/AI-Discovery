@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { runAnalysis } from "@/lib/capabilities/analyze";
+import { currentMode, runTurn } from "@/lib/capabilities/analyze";
 import { CAPABILITIES } from "@/lib/capabilities/registry";
-import type { AnalyzeSession, InputType } from "@/lib/capabilities/types";
+import type { AnalyzeSession, ChatTurn, InputType } from "@/lib/capabilities/types";
 import { listSessions, newSessionId, saveSession } from "@/lib/store";
 import { getUseCase, saveUseCase } from "@/lib/intake/store";
 
@@ -46,18 +46,16 @@ export async function POST(req: Request) {
       ? (body.inputType as InputType)
       : "auto";
 
+  const productContext = typeof body.productContext === "string" ? body.productContext.trim() : undefined;
+  const mode = await currentMode();
+
   const session: AnalyzeSession = {
     id: newSessionId(),
-    input: {
-      text,
-      inputType,
-      productContext: typeof body.productContext === "string" ? body.productContext.trim() : undefined,
-    },
-    capabilityIds,
-    status: "queued",
-    mode: "demo",
+    input: { text, inputType, productContext },
+    turns: [],
+    status: "running",
+    mode,
     createdAt: Date.now(),
-    runs: [],
     linkedUseCaseId: typeof body.linkedUseCaseId === "string" ? body.linkedUseCaseId : undefined,
   };
   await saveSession(session);
@@ -73,7 +71,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    await runAnalysis(session, saveSession);
+    const runs = await runTurn({ text, inputType, productContext }, capabilityIds);
+    const turn: ChatTurn = { id: "t1", userText: text, capabilityIds, runs, createdAt: Date.now() };
+    session.turns = [turn];
+    session.status = runs.some((r) => r.status === "complete") ? "complete" : "error";
   } catch (err) {
     session.status = "error";
     session.finishedAt = Date.now();
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
     );
   }
 
+  session.finishedAt = Date.now();
   await saveSession(session);
   return NextResponse.json({ session });
 }
