@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TopBar } from "../components/shared";
 
 interface PromptRow {
   capabilityId: string;
@@ -32,7 +31,6 @@ export default function Studio() {
 
   return (
     <>
-      <TopBar mode={mode} />
       <main className="container">
         <section className="hero" style={{ paddingBottom: 8 }}>
           <div className="eyebrow">⚙ Agent studio</div>

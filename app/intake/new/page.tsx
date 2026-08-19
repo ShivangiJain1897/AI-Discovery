@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { StatusPill, TopBar, useCurrentUser } from "../../components/shared";
+import { StatusPill, useCurrentUser } from "../../components/shared";
 import type { SimilarMatch } from "@/lib/intake/types";
 
 export default function NewUseCasePage() {
@@ -122,7 +122,6 @@ function NewUseCaseForm() {
 
   return (
     <>
-      <TopBar />
       <main className="container">
         <div style={{ paddingTop: 24 }}>
           <div className="crumb">

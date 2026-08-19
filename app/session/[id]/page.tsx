@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { TopBar } from "../../components/shared";
+import { PinButton } from "../../components/shared";
 import type { AnalyzeSession, CapabilityMeta, CapabilityOutput, OutputSection } from "@/lib/capabilities/types";
 
 export default function SessionPage() {
@@ -45,20 +45,15 @@ export default function SessionPage() {
 
   if (notFound) {
     return (
-      <>
-        <TopBar />
-        <main className="container">
-          <div className="empty" style={{ marginTop: 40 }}>
-            Session not found. <Link href="/" style={{ color: "var(--brand)" }}>Back to composer</Link>
-          </div>
-        </main>
-      </>
+      <main className="container">
+        <div className="empty" style={{ marginTop: 40 }}>
+          Session not found. <Link href="/" style={{ color: "var(--brand)" }}>Back to composer</Link>
+        </div>
+      </main>
     );
   }
 
   return (
-    <>
-      <TopBar mode={session?.mode} />
       <main className="container">
         <div style={{ paddingTop: 24 }}>
           <div className="crumb">
@@ -71,6 +66,9 @@ export default function SessionPage() {
               <span className="badge">{session.input.inputType}</span>
             )}
             <span className="spacer" />
+            {session && (
+              <PinButton pin={{ id: `session:${id}`, kind: "session", label: firstLine(session.input.text), href: `/session/${id}` }} />
+            )}
             {session?.linkedUseCaseId ? (
               <Link href={`/intake/${session.linkedUseCaseId}`} className="btn primary">↩ Back to use case</Link>
             ) : (
@@ -125,7 +123,6 @@ export default function SessionPage() {
           <Link href="/" style={{ color: "var(--brand)" }}>New session</Link>
         </footer>
       </main>
-    </>
   );
 }
 

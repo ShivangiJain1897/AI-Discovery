@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusPill, TopBar, useCurrentUser } from "../components/shared";
+import { StatusPill, useCurrentUser } from "../components/shared";
 import type { UseCase } from "@/lib/intake/types";
 import { INTAKE_STATUSES } from "@/lib/intake/types";
 
@@ -35,7 +35,6 @@ export default function IntakeTracker() {
 
   return (
     <>
-      <TopBar mode={mode} />
       <main className="container">
         <section className="hero" style={{ paddingBottom: 8 }}>
           <div className="eyebrow">◷ Intake tracker</div>

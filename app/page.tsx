@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { TopBar } from "./components/shared";
 import type { AnalyzeSession, CapabilityMeta, InputType } from "@/lib/capabilities/types";
 
 interface CapResponse {
@@ -117,7 +116,6 @@ function Composer() {
 
   return (
     <>
-      <TopBar mode={meta?.mode} />
       <main className="container">
         <section className="hero">
           <div className="eyebrow">✦ Product discovery copilot</div>

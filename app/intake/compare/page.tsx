@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { StatusPill, TopBar } from "../../components/shared";
+import { StatusPill } from "../../components/shared";
 import type { UseCase } from "@/lib/intake/types";
 
 interface Pair { a: string; b: string; score: number; sharedTerms: string[] }
@@ -49,7 +49,6 @@ function Compare() {
 
   return (
     <>
-      <TopBar />
       <main className="container">
         <div style={{ paddingTop: 24 }}>
           <div className="crumb"><Link href="/intake">Intake</Link> / Compare</div>

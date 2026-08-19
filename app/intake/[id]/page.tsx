@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusPill, TopBar, useCurrentUser } from "../../components/shared";
+import { PinButton, StatusPill, useCurrentUser } from "../../components/shared";
 import AnalysisPanel from "./AnalysisPanel";
 import type { SimilarMatch, UseCase } from "@/lib/intake/types";
 import { INTAKE_STATUSES } from "@/lib/intake/types";
@@ -85,7 +85,6 @@ export default function UseCaseDetail() {
   if (notFound) {
     return (
       <>
-        <TopBar />
         <main className="container">
           <div className="empty" style={{ marginTop: 40 }}>
             Use case not found. <Link href="/intake" style={{ color: "var(--brand)" }}>Back to tracker</Link>
@@ -97,7 +96,6 @@ export default function UseCaseDetail() {
   if (!uc) {
     return (
       <>
-        <TopBar />
         <main className="container"><div style={{ padding: 40 }}><span className="spinner" /></div></main>
       </>
     );
@@ -108,7 +106,6 @@ export default function UseCaseDetail() {
 
   return (
     <>
-      <TopBar />
       <main className="container">
         <div style={{ paddingTop: 24 }}>
           <div className="crumb"><Link href="/intake">Intake</Link> / {uc.id}</div>
@@ -130,6 +127,7 @@ export default function UseCaseDetail() {
               </select>
             </label>
             <Link className="btn" href={`/?useCase=${uc.id}`}>🔎 Run discovery</Link>
+            <PinButton pin={{ id: `uc:${uc.id}`, kind: "usecase", label: uc.title, href: `/intake/${uc.id}` }} />
             {uc.linkedSessionId && (
               <Link className="btn ghost" href={`/session/${uc.linkedSessionId}`}>↗ Source discovery</Link>
             )}
