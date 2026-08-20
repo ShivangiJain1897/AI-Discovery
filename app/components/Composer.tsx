@@ -19,12 +19,12 @@ const INPUT_TYPES: { id: InputType; label: string }[] = [
 
 /** The Discovery composer — paste input, pick capabilities, start a thread.
  * When productId is set, the thread is scoped to that product. */
-export default function Composer({ productId, productContext }: { productId?: string; productContext?: string }) {
+export default function Composer({ productId, productContext, initialCapabilities }: { productId?: string; productContext?: string; initialCapabilities?: string[] }) {
   const router = useRouter();
   const [meta, setMeta] = useState<CapResponse | null>(null);
   const [text, setText] = useState("");
   const [inputType, setInputType] = useState<InputType>("auto");
-  const [selected, setSelected] = useState<Set<string>>(new Set(["prd"]));
+  const [selected, setSelected] = useState<Set<string>>(new Set(initialCapabilities && initialCapabilities.length ? initialCapabilities : ["prd"]));
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
 

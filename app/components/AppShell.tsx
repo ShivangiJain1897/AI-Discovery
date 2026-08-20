@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 interface SessionLite {
   id: string;
@@ -17,7 +17,6 @@ interface SessionLite {
  */
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mode, setMode] = useState<"live" | "demo">("demo");
@@ -37,7 +36,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const n = !collapsed; setCollapsed(n); localStorage.setItem("aid_sidebar_collapsed", n ? "1" : "0");
   }
 
-  const onDiscovery = pathname === "/" || pathname.startsWith("/session");
+  const onDashboard = pathname === "/";
+  const onDiscovery = pathname.startsWith("/discovery") || pathname.startsWith("/session");
   const onProducts = pathname.startsWith("/products") || pathname.startsWith("/product/");
 
   return (
@@ -58,12 +58,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
-        <button className="sb-new" onClick={() => router.push("/")} title="New discovery">
-          <span className="plus">＋</span>{!collapsed && <span>New discovery</span>}
-        </button>
-
-        <nav className="sb-nav">
-          <Link href="/" className={`sb-navlink ${onDiscovery ? "on" : ""}`} title="Discovery">
+        <nav className="sb-nav" style={{ marginTop: 8 }}>
+          <Link href="/" className={`sb-navlink ${onDashboard ? "on" : ""}`} title="Dashboard">
+            <span className="sb-ico">◫</span>{!collapsed && <span>Dashboard</span>}
+          </Link>
+          <Link href="/discovery" className={`sb-navlink ${onDiscovery ? "on" : ""}`} title="Discovery">
             <span className="sb-ico">✦</span>{!collapsed && <span>Discovery</span>}
           </Link>
           <Link href="/products" className={`sb-navlink ${onProducts ? "on" : ""}`} title="Products">
