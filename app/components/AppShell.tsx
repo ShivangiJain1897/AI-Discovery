@@ -4,48 +4,41 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-interface ProductLite {
+interface SessionLite {
   id: string;
-  name: string;
-  oneLiner: string;
+  input: { text: string };
 }
 
-const SECTIONS = [
-  { key: "", label: "Overview", icon: "◫" },
-  { key: "agents", label: "Agents", icon: "🤖" },
-  { key: "discovery", label: "Discovery", icon: "✦" },
-  { key: "backlog", label: "Backlog", icon: "◧" },
-];
-
-/** Product Studio shell: a product switcher + per-product sections. */
+/**
+ * Constant app shell. The left nav never restructures based on selection:
+ * Discovery (the front door), Products, and Studio (in the ⋯ menu) are always
+ * in the same place. Product sub-navigation lives as tabs inside the product
+ * page, not in this sidebar.
+ */
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const router = useRouter();
-  const [products, setProducts] = useState<ProductLite[]>([]);
-  const [mode, setMode] = useState<"live" | "demo">("demo");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [mode, setMode] = useState<"live" | "demo">("demo");
+  const [recent, setRecent] = useState<SessionLite[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
-
-  const currentId = pathname.match(/^\/product\/([^/]+)/)?.[1];
-  const current = products.find((p) => p.id === currentId);
 
   useEffect(() => { setCollapsed(localStorage.getItem("aid_sidebar_collapsed") === "1"); }, []);
   useEffect(() => {
-    fetch("/api/products").then((r) => r.json()).then((d) => setProducts(Array.isArray(d.products) ? d.products : [])).catch(() => {});
     fetch("/api/product-agents").then((r) => r.json()).then((d) => setMode(d.mode)).catch(() => {});
   }, []);
-  useEffect(() => { setMobileOpen(false); setSwitcherOpen(false); }, [pathname]);
+  useEffect(() => {
+    fetch("/api/analyze").then((r) => r.json()).then((d) => setRecent(Array.isArray(d.sessions) ? d.sessions.slice(0, 10) : [])).catch(() => {});
+    setMobileOpen(false);
+  }, [pathname]);
 
   function toggleCollapsed() {
     const n = !collapsed; setCollapsed(n); localStorage.setItem("aid_sidebar_collapsed", n ? "1" : "0");
   }
-  const sectionActive = (key: string) => {
-    if (!currentId) return false;
-    const base = `/product/${currentId}`;
-    return key === "" ? pathname === base : pathname.startsWith(`${base}/${key}`);
-  };
+
+  const onDiscovery = pathname === "/" || pathname.startsWith("/session");
+  const onProducts = pathname.startsWith("/products") || pathname.startsWith("/product/");
 
   return (
     <div className={`shell ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
@@ -65,55 +58,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
-        {/* Product switcher */}
+        <button className="sb-new" onClick={() => router.push("/")} title="New discovery">
+          <span className="plus">＋</span>{!collapsed && <span>New discovery</span>}
+        </button>
+
+        <nav className="sb-nav">
+          <Link href="/" className={`sb-navlink ${onDiscovery ? "on" : ""}`} title="Discovery">
+            <span className="sb-ico">✦</span>{!collapsed && <span>Discovery</span>}
+          </Link>
+          <Link href="/products" className={`sb-navlink ${onProducts ? "on" : ""}`} title="Products">
+            <span className="sb-ico">◱</span>{!collapsed && <span>Products</span>}
+          </Link>
+        </nav>
+
         {!collapsed && (
-          <div className="switcher">
-            <button className="switcher-btn" onClick={() => setSwitcherOpen((v) => !v)}>
-              <span className="sw-ico">◱</span>
-              <span className="sw-name">{current ? current.name : "All products"}</span>
-              <span className="sw-caret">⌄</span>
-            </button>
-            {switcherOpen && (
-              <>
-                <div className="more-scrim" onClick={() => setSwitcherOpen(false)} />
-                <div className="switcher-menu">
-                  <Link href="/" className="sw-item">All products</Link>
-                  {products.map((p) => (
-                    <Link key={p.id} href={`/product/${p.id}`} className={`sw-item ${p.id === currentId ? "on" : ""}`}>
-                      <span className="sw-dot" />{p.name}
-                    </Link>
-                  ))}
-                  <button className="sw-item new" onClick={() => { setSwitcherOpen(false); router.push("/product/new"); }}>＋ New product</button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Per-product sections */}
-        {currentId ? (
-          <nav className="sb-nav">
-            {SECTIONS.map((s) => (
-              <Link key={s.key} href={`/product/${currentId}${s.key ? "/" + s.key : ""}`}
-                className={`sb-navlink ${sectionActive(s.key) ? "on" : ""}`} title={s.label}>
-                <span className="sb-ico">{s.icon}</span>{!collapsed && <span>{s.label}</span>}
-              </Link>
-            ))}
-          </nav>
-        ) : (
-          <button className="sb-new" onClick={() => router.push("/product/new")} title="New product">
-            <span className="plus">＋</span>{!collapsed && <span>New product</span>}
-          </button>
-        )}
-
-        {/* Product list (when none selected) */}
-        {!currentId && !collapsed && (
           <div className="sb-section sb-recent">
-            <div className="sb-heading">Products</div>
-            {products.length === 0 ? <div className="sb-empty">None yet</div> :
-              products.map((p) => (
-                <Link key={p.id} href={`/product/${p.id}`} className="sb-item-link recent" title={p.oneLiner}>
-                  <span className="sb-ico">◱</span><span className="sb-item-label">{p.name}</span>
+            <div className="sb-heading">Recent discoveries</div>
+            {recent.length === 0 ? <div className="sb-empty">None yet</div> :
+              recent.map((s) => (
+                <Link key={s.id} href={`/session/${s.id}`} className={`sb-item-link recent ${pathname === `/session/${s.id}` ? "on" : ""}`} title={firstLine(s.input.text)}>
+                  <span className="sb-ico">✦</span><span className="sb-item-label">{firstLine(s.input.text)}</span>
                 </Link>
               ))}
           </div>
@@ -140,4 +104,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-main">{children}</div>
     </div>
   );
+}
+
+function firstLine(text: string): string {
+  const l = (text || "").trim().split(/\r?\n/)[0] || "Untitled";
+  return l.length > 34 ? l.slice(0, 31) + "…" : l;
 }

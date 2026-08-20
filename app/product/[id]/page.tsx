@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import ProductTabs from "../../components/ProductTabs";
 import type { Product, ProductBrief } from "@/lib/product/types";
 
 const FIELDS: { key: keyof ProductBrief; label: string }[] = [
@@ -53,8 +54,8 @@ export default function ProductOverview() {
   return (
     <main className="container">
       <div style={{ paddingTop: 24 }}>
-        <div className="crumb"><Link href="/">Products</Link> / {product.name}</div>
-        <div className="section-head" style={{ alignItems: "center" }}>
+        <ProductTabs id={id} name={product.name} />
+        <div className="section-head" style={{ alignItems: "center", marginTop: 16 }}>
           <h2 style={{ fontSize: 26 }}>{product.name}</h2>
           <span className="spacer" />
           <button className="btn" onClick={runAgents} disabled={running}>{running ? <span className="spinner" /> : "▶"} Run agents</button>

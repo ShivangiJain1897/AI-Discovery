@@ -2,57 +2,58 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Product } from "@/lib/product/types";
+import Composer from "./components/Composer";
+import type { AnalyzeSession } from "@/lib/capabilities/types";
 
-export default function ProductsHome() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export default function DiscoveryHome() {
+  const [sessions, setSessions] = useState<AnalyzeSession[]>([]);
 
   useEffect(() => {
-    fetch("/api/products").then((r) => r.json()).then((d) => setProducts(Array.isArray(d.products) ? d.products : [])).finally(() => setLoaded(true));
+    fetch("/api/analyze").then((r) => r.json()).then((d) => setSessions(Array.isArray(d.sessions) ? d.sessions : [])).catch(() => {});
   }, []);
 
   return (
     <main className="container">
       <section className="hero">
         <div className="eyebrow">✦ AI Product Studio</div>
-        <h1>Run every product with a team of AI agents.</h1>
+        <h1>Ask anything. Discovery starts here.</h1>
         <p className="lede">
-          Create a product, configure the agents that work it — market, competitive, defect,
-          regulatory, process, knowledge — and let them surface signals that become a prioritized
-          backlog you own. Discovery chat is one click away inside each product.
+          Paste a feature idea, a written requirement, or a raw meeting transcript — pick what you
+          want (PRD, requirements, market/competitive/feedback research, process, defects, business
+          value) and get it as a chat you can follow up on. Working on a specific product?{" "}
+          <Link href="/products" style={{ color: "var(--brand)" }}>Open a product</Link> to ground it
+          and build a backlog.
         </p>
-        <div style={{ marginTop: 20 }}>
-          <Link href="/product/new" className="btn primary lg">＋ New product</Link>
-        </div>
       </section>
 
       <section className="section">
-        <div className="section-head"><h2>Your products</h2><span className="muted">{products.length}</span></div>
-        {!loaded ? (
-          <div style={{ padding: 20 }}><span className="spinner" /></div>
-        ) : products.length === 0 ? (
-          <div className="empty">No products yet — <Link href="/product/new" style={{ color: "var(--brand)" }}>create your first</Link> and the AI will draft its brief.</div>
+        <Composer />
+      </section>
+
+      <section className="section">
+        <div className="section-head"><h2 style={{ fontSize: 18 }}>Recent discoveries</h2><span className="muted">{sessions.length}</span></div>
+        {sessions.length === 0 ? (
+          <div className="empty">Nothing yet — ask something above to start your first thread.</div>
         ) : (
-          <div className="grid cols-2">
-            {products.map((p) => (
-              <Link key={p.id} href={`/product/${p.id}`}>
-                <div className="card hover">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                    <span style={{ fontSize: 22 }}>◱</span>
-                    <h3 style={{ fontSize: 17 }}>{p.name}</h3>
-                  </div>
-                  <p style={{ color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.5 }}>{p.oneLiner}</p>
-                  <div className="tags" style={{ marginTop: 12 }}>
-                    <span className="otag">{p.enabledAgents.length} agents</span>
-                    <span className="otag">{p.signals.length} signals</span>
-                  </div>
+          sessions.map((s) => (
+            <Link key={s.id} href={`/session/${s.id}`}>
+              <div className="sess-row">
+                <span className={`pill ${s.status}`}>{s.status}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{firstLine(s.input.text)}</div>
+                  <div className="rid">{(s.turns?.length ?? 1)} turn{(s.turns?.length ?? 1) === 1 ? "" : "s"} · {s.id}</div>
                 </div>
-              </Link>
-            ))}
-          </div>
+                <div style={{ color: "var(--ink-faint)", fontSize: 12, whiteSpace: "nowrap" }}>{new Date(s.createdAt).toLocaleDateString()}</div>
+              </div>
+            </Link>
+          ))
         )}
       </section>
     </main>
   );
+}
+
+function firstLine(text: string): string {
+  const l = (text || "").trim().split(/\r?\n/)[0] || "Untitled";
+  return l.length > 90 ? l.slice(0, 87) + "…" : l;
 }

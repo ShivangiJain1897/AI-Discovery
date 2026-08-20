@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import ProductTabs from "../../../components/ProductTabs";
 import type { ProductAgentMeta } from "@/lib/product/catalog";
 import type { Product } from "@/lib/product/types";
 
@@ -42,8 +43,8 @@ export default function ProductAgents() {
   return (
     <main className="container">
       <div style={{ paddingTop: 24 }}>
-        <div className="crumb"><Link href="/">Products</Link> / <Link href={`/product/${id}`}>{product.name}</Link> / Agents</div>
-        <div className="section-head" style={{ alignItems: "center" }}>
+        <ProductTabs id={id} name={product.name} />
+        <div className="section-head" style={{ alignItems: "center", marginTop: 16 }}>
           <h2 style={{ fontSize: 24 }}>Agents</h2>
           <span className="muted">Toggle the AI team for this product, then run them</span>
           <span className="spacer" />

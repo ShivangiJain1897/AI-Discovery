@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import ProductTabs from "../../../components/ProductTabs";
 import type { BacklogBucket, BacklogItem, BacklogStatus } from "@/lib/product/types";
 import { PRODUCT_AGENTS } from "@/lib/product/catalog";
 
@@ -52,8 +53,8 @@ export default function Backlog() {
   return (
     <main className="container">
       <div style={{ paddingTop: 24 }}>
-        <div className="crumb"><Link href="/">Products</Link> / <Link href={`/product/${id}`}>Product</Link> / Backlog</div>
-        <div className="section-head" style={{ alignItems: "center" }}>
+        <ProductTabs id={id} />
+        <div className="section-head" style={{ alignItems: "center", marginTop: 16 }}>
           <h2 style={{ fontSize: 24 }}>Backlog</h2>
           <span className="muted">AI-prioritized · you curate & own it</span>
           <span className="spacer" />

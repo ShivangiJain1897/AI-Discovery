@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Composer from "../../../components/Composer";
+import ProductTabs from "../../../components/ProductTabs";
 import type { AnalyzeSession } from "@/lib/capabilities/types";
 import type { Product } from "@/lib/product/types";
 
@@ -22,8 +23,8 @@ export default function ProductDiscovery() {
   return (
     <main className="container">
       <div style={{ paddingTop: 24 }}>
-        <div className="crumb"><Link href="/">Products</Link> / <Link href={`/product/${id}`}>{product?.name ?? "Product"}</Link> / Discovery</div>
-        <h2 style={{ fontSize: 24 }}>Discovery</h2>
+        <ProductTabs id={id} name={product?.name} />
+        <h2 style={{ fontSize: 24, marginTop: 16 }}>Discovery</h2>
         <p style={{ color: "var(--ink-faint)", fontSize: 13.5 }}>Chat grounded in this product. Paste a feature, requirement, or transcript and pick what to generate.</p>
       </div>
 

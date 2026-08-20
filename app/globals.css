@@ -99,6 +99,29 @@ p {
   padding: 0 24px;
 }
 
+/* ---------------- Product tabs (in-page) ---------------- */
+.ptabs-wrap {
+  margin-bottom: 4px;
+}
+.ptabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.ptab {
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.ptab:hover { color: var(--ink); }
+.ptab.on {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+
 /* ---------------- Product switcher ---------------- */
 .switcher {
   position: relative;
