@@ -47,9 +47,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     localStorage.setItem("aid_sidebar_collapsed", next ? "1" : "0");
   }
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
-
   return (
     <div className={`shell ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
       {/* Mobile top bar */}
@@ -76,9 +73,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {!collapsed && <span>New discovery</span>}
         </button>
 
-        <nav className="sb-nav">
-          <SbLink href="/intake" icon="◷" label="Intake tracker" active={isActive("/intake")} collapsed={collapsed} />
-        </nav>
 
         {/* Pinned */}
         {pins.length > 0 && (
@@ -138,15 +132,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="app-main">{children}</div>
     </div>
-  );
-}
-
-function SbLink({ href, icon, label, active, collapsed }: { href: string; icon: string; label: string; active: boolean; collapsed: boolean }) {
-  return (
-    <Link href={href} className={`sb-navlink ${active ? "on" : ""}`} title={label}>
-      <span className="sb-ico">{icon}</span>
-      {!collapsed && <span>{label}</span>}
-    </Link>
   );
 }
 

@@ -100,11 +100,6 @@ export default function ThreadPage() {
           <h2>{firstLine(title)}</h2>
           <span className="spacer" />
           {session && <PinButton pin={{ id: `session:${id}`, kind: "session", label: firstLine(title), href: `/session/${id}` }} />}
-          {session?.linkedUseCaseId ? (
-            <Link href={`/intake/${session.linkedUseCaseId}`} className="btn primary">↩ Back to use case</Link>
-          ) : (
-            <Link href={`/intake/new?session=${id}`} className="btn primary">→ Send to intake</Link>
-          )}
         </div>
       </div>
 

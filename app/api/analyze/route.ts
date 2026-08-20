@@ -3,7 +3,6 @@ import { currentMode, runTurn } from "@/lib/capabilities/analyze";
 import { CAPABILITIES } from "@/lib/capabilities/registry";
 import type { AnalyzeSession, ChatTurn, InputType } from "@/lib/capabilities/types";
 import { listSessions, newSessionId, saveSession } from "@/lib/store";
-import { getUseCase, saveUseCase } from "@/lib/intake/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +22,6 @@ export async function POST(req: Request) {
     inputType?: string;
     productContext?: string;
     capabilityIds?: string[];
-    linkedUseCaseId?: string;
   } = {};
   try {
     body = await req.json();
@@ -56,19 +54,8 @@ export async function POST(req: Request) {
     status: "running",
     mode,
     createdAt: Date.now(),
-    linkedUseCaseId: typeof body.linkedUseCaseId === "string" ? body.linkedUseCaseId : undefined,
   };
   await saveSession(session);
-
-  // Link this discovery back to the intake use case it came from, if any.
-  if (session.linkedUseCaseId) {
-    const uc = await getUseCase(session.linkedUseCaseId);
-    if (uc) {
-      uc.discoverySessionIds = [...(uc.discoverySessionIds ?? []), session.id];
-      uc.updatedAt = Date.now();
-      await saveUseCase(uc);
-    }
-  }
 
   try {
     const runs = await runTurn({ text, inputType, productContext }, capabilityIds);

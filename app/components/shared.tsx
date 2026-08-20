@@ -1,18 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { IntakeStatus } from "@/lib/intake/types";
-import { INTAKE_STATUSES } from "@/lib/intake/types";
 
-const STATUS_LABEL: Record<string, string> = Object.fromEntries(
-  INTAKE_STATUSES.map((s) => [s.id, s.label])
-);
-
-export function StatusPill({ status }: { status: IntakeStatus }) {
-  return <span className={`status ${status}`}>{STATUS_LABEL[status] ?? status}</span>;
-}
-
-/** Persisted "who am I" for attribution on the intake tracker (no auth in pilot). */
+/** Persisted "who am I" for attribution (no auth in pilot). */
 export function useCurrentUser(): [string, (n: string) => void] {
   const [name, setName] = useState("");
   useEffect(() => {

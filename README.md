@@ -1,18 +1,15 @@
 # AI Discovery
 
-Two connected modes for product teams:
+A **product discovery copilot**, now a conversation:
 
-- **Discovery** — a copilot. Paste anything (a feature idea, a written requirement, or a raw
-  meeting transcript) and pick exactly what you want generated: a PRD, requirements, research,
-  analysis, or a business-value case.
-- **Intake** — a team tracker with an **AI triage copilot**. Promote a discovered use case into a
-  tracked record; the tracker **flags similar/duplicate use cases**, lets you **compare** them, and
-  the **Intake Analyst** produces a provisional idea record + **RICE-A score** (with per-factor
-  evidence, assumptions, confidence, and improving questions), a risk overlay, and AI-fit — while
-  **humans override the score and make the decision** (versioned score history). Persists to a data
-  store.
+- **Discovery (chat)** — paste anything (a feature idea, a written requirement, or a raw meeting
+  transcript), pick the capabilities you want, and get outputs as assistant messages. Follow up in
+  the same thread ("now do a competitive analysis on this") and it builds on prior turns.
 - **Studio** — see and edit the **prompt behind every agent** (each capability's system + task
   prompt). Edits are saved and take effect immediately; reset to default anytime.
+
+> The **Intake tracker** was split into its own product/repo (`use-case-tracker`) so a separate
+> team can own it. This app is Discovery-only.
 
 **Deploying it for a few people?** See [`DEPLOY.md`](./DEPLOY.md) — Vercel + a hosted Postgres +
 an optional shared password, ~15 minutes, no code changes.

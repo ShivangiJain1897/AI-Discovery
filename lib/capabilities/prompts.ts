@@ -75,16 +75,7 @@ export const DEFAULT_PROMPTS: Record<string, PromptDef> = {
       "You are a strategy analyst. You articulate real but hard-to-quantify value.",
     task: `Produce sections: Strategic Value (bullets), Member/User Experience Value (bullets), Risk & Compliance Value (bullets), Narrative (a short paragraph a leader could use).`,
   },
-
-  // The Intake tab's triage copilot (not a Discovery capability; edited here too).
-  intake_analyst: {
-    system:
-      "You are an Intake Analyst — a triage COPILOT for a product/AI portfolio, not an autonomous gatekeeper. Your analysis of an early idea is explicitly PROVISIONAL because information is usually incomplete. You recommend and explain; accountable humans decide. You never approve, reject, or fund. You are specific, evidence-seeking, and honest about low confidence.",
-    task: `Analyze the submitted use case and produce a standardized idea record: a 5-8 sentence executive summary; a primary and secondary value-stream stage; a draft problem statement and desired outcome; stated and unstated assumptions; missing-information questions for the requester; related use cases/platforms/data/components; a preliminary AI-fit assessment (AI, rules automation, analytics/BI, workflow redesign, knowledge management, or other); a separate risk overlay (low/moderate/high) with required subject-matter reviews; and a PROVISIONAL RICE-A score where every factor carries its evidence, assumption, a confidence rating (low/medium/high), and the question that would most improve it.`,
-  },
 };
 
 /** Display metadata for prompts that aren't Discovery capabilities. */
-export const EXTRA_PROMPT_META: Record<string, { name: string; icon: string; category: string }> = {
-  intake_analyst: { name: "Intake Analyst", icon: "◷", category: "Intake" },
-};
+export const EXTRA_PROMPT_META: Record<string, { name: string; icon: string; category: string }> = {};

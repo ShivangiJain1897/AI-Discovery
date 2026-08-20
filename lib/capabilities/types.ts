@@ -88,8 +88,6 @@ export interface AnalyzeSession {
   mode: "live" | "demo";
   createdAt: number;
   finishedAt?: number;
-  /** Set when this discovery was launched from an intake use case. */
-  linkedUseCaseId?: string;
   /** Legacy single-shot fields (kept for older sessions). */
   capabilityIds?: string[];
   runs?: CapabilityRun[];
