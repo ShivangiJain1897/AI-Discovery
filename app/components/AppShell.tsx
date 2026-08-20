@@ -3,58 +3,56 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { usePins } from "./shared";
 
-interface SessionLite {
+interface ProductLite {
   id: string;
-  input: { text: string };
-  createdAt: number;
+  name: string;
+  oneLiner: string;
 }
 
-/**
- * App shell: a collapsible left sidebar (the pattern every chat/AI + product tool
- * converges on) with a prominent New action, pinned items, primary nav, a recent
- * history list, and secondary items in an overflow ("More") menu.
- */
+const SECTIONS = [
+  { key: "", label: "Overview", icon: "◫" },
+  { key: "agents", label: "Agents", icon: "🤖" },
+  { key: "discovery", label: "Discovery", icon: "✦" },
+  { key: "backlog", label: "Backlog", icon: "◧" },
+];
+
+/** Product Studio shell: a product switcher + per-product sections. */
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const router = useRouter();
+  const [products, setProducts] = useState<ProductLite[]>([]);
+  const [mode, setMode] = useState<"live" | "demo">("demo");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mode, setMode] = useState<"live" | "demo">("demo");
-  const [recent, setRecent] = useState<SessionLite[]>([]);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const { pins, toggle } = usePins();
 
+  const currentId = pathname.match(/^\/product\/([^/]+)/)?.[1];
+  const current = products.find((p) => p.id === currentId);
+
+  useEffect(() => { setCollapsed(localStorage.getItem("aid_sidebar_collapsed") === "1"); }, []);
   useEffect(() => {
-    setCollapsed(localStorage.getItem("aid_sidebar_collapsed") === "1");
+    fetch("/api/products").then((r) => r.json()).then((d) => setProducts(Array.isArray(d.products) ? d.products : [])).catch(() => {});
+    fetch("/api/product-agents").then((r) => r.json()).then((d) => setMode(d.mode)).catch(() => {});
   }, []);
-  useEffect(() => {
-    fetch("/api/capabilities").then((r) => r.json()).then((d) => setMode(d.mode)).catch(() => {});
-  }, []);
-  // Refresh recent history on navigation.
-  useEffect(() => {
-    fetch("/api/analyze")
-      .then((r) => r.json())
-      .then((d) => setRecent(Array.isArray(d.sessions) ? d.sessions.slice(0, 12) : []))
-      .catch(() => {});
-    setMobileOpen(false);
-  }, [pathname]);
+  useEffect(() => { setMobileOpen(false); setSwitcherOpen(false); }, [pathname]);
 
   function toggleCollapsed() {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem("aid_sidebar_collapsed", next ? "1" : "0");
+    const n = !collapsed; setCollapsed(n); localStorage.setItem("aid_sidebar_collapsed", n ? "1" : "0");
   }
+  const sectionActive = (key: string) => {
+    if (!currentId) return false;
+    const base = `/product/${currentId}`;
+    return key === "" ? pathname === base : pathname.startsWith(`${base}/${key}`);
+  };
 
   return (
     <div className={`shell ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
-      {/* Mobile top bar */}
       <div className="mtop">
         <button className="icon-btn" onClick={() => setMobileOpen(true)} aria-label="Open menu">☰</button>
-        <Link href="/" className="mbrand"><span className="logo-mark sm">◈</span> AI Discovery</Link>
+        <Link href="/" className="mbrand"><span className="logo-mark sm">◈</span> Product Studio</Link>
       </div>
-
       <div className="scrim" onClick={() => setMobileOpen(false)} />
 
       <aside className="sidebar">
@@ -62,67 +60,76 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button className="icon-btn" onClick={toggleCollapsed} aria-label="Toggle sidebar">☰</button>
           {!collapsed && (
             <Link href="/" className="sb-brand">
-              <span className="logo-mark sm">◈</span>
-              <span>AI Discovery</span>
+              <span className="logo-mark sm">◈</span><span>Product Studio</span>
             </Link>
           )}
         </div>
 
-        <button className="sb-new" onClick={() => router.push("/")} title="New discovery">
-          <span className="plus">＋</span>
-          {!collapsed && <span>New discovery</span>}
-        </button>
-
-
-        {/* Pinned */}
-        {pins.length > 0 && (
-          <div className="sb-section">
-            {!collapsed && <div className="sb-heading">Pinned</div>}
-            {pins.map((p) => (
-              <div key={p.id} className={`sb-item ${pathname === p.href ? "on" : ""}`}>
-                <Link href={p.href} className="sb-item-link" title={p.label}>
-                  <span className="sb-ico">{p.kind === "usecase" ? "◷" : "✦"}</span>
-                  {!collapsed && <span className="sb-item-label">{p.label}</span>}
-                </Link>
-                {!collapsed && (
-                  <button className="sb-x" title="Unpin" onClick={() => toggle(p)}>★</button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Recent history (chat-like) */}
+        {/* Product switcher */}
         {!collapsed && (
-          <div className="sb-section sb-recent">
-            <div className="sb-heading">Recent</div>
-            {recent.length === 0 ? (
-              <div className="sb-empty">No discoveries yet</div>
-            ) : (
-              recent.map((s) => (
-                <Link key={s.id} href={`/session/${s.id}`} className={`sb-item-link recent ${pathname === `/session/${s.id}` ? "on" : ""}`} title={firstLine(s.input.text)}>
-                  <span className="sb-ico">✦</span>
-                  <span className="sb-item-label">{firstLine(s.input.text)}</span>
-                </Link>
-              ))
+          <div className="switcher">
+            <button className="switcher-btn" onClick={() => setSwitcherOpen((v) => !v)}>
+              <span className="sw-ico">◱</span>
+              <span className="sw-name">{current ? current.name : "All products"}</span>
+              <span className="sw-caret">⌄</span>
+            </button>
+            {switcherOpen && (
+              <>
+                <div className="more-scrim" onClick={() => setSwitcherOpen(false)} />
+                <div className="switcher-menu">
+                  <Link href="/" className="sw-item">All products</Link>
+                  {products.map((p) => (
+                    <Link key={p.id} href={`/product/${p.id}`} className={`sw-item ${p.id === currentId ? "on" : ""}`}>
+                      <span className="sw-dot" />{p.name}
+                    </Link>
+                  ))}
+                  <button className="sw-item new" onClick={() => { setSwitcherOpen(false); router.push("/product/new"); }}>＋ New product</button>
+                </div>
+              </>
             )}
           </div>
         )}
 
-        {/* Footer: mode + More (overflow) */}
+        {/* Per-product sections */}
+        {currentId ? (
+          <nav className="sb-nav">
+            {SECTIONS.map((s) => (
+              <Link key={s.key} href={`/product/${currentId}${s.key ? "/" + s.key : ""}`}
+                className={`sb-navlink ${sectionActive(s.key) ? "on" : ""}`} title={s.label}>
+                <span className="sb-ico">{s.icon}</span>{!collapsed && <span>{s.label}</span>}
+              </Link>
+            ))}
+          </nav>
+        ) : (
+          <button className="sb-new" onClick={() => router.push("/product/new")} title="New product">
+            <span className="plus">＋</span>{!collapsed && <span>New product</span>}
+          </button>
+        )}
+
+        {/* Product list (when none selected) */}
+        {!currentId && !collapsed && (
+          <div className="sb-section sb-recent">
+            <div className="sb-heading">Products</div>
+            {products.length === 0 ? <div className="sb-empty">None yet</div> :
+              products.map((p) => (
+                <Link key={p.id} href={`/product/${p.id}`} className="sb-item-link recent" title={p.oneLiner}>
+                  <span className="sb-ico">◱</span><span className="sb-item-label">{p.name}</span>
+                </Link>
+              ))}
+          </div>
+        )}
+
         <div className="sb-footer">
-          <span className={`badge ${mode}`} title={mode === "live" ? "Powered by Claude" : "Illustrative demo output"}>
+          <span className={`badge ${mode}`} title={mode === "live" ? "Powered by Claude" : "Deterministic demo output"}>
             <span className="dot" />{!collapsed && (mode === "live" ? "Live · Claude" : "Demo mode")}
           </span>
           <div className="more-wrap">
-            <button className="icon-btn" onClick={() => setMoreOpen((v) => !v)} aria-label="More" title="More">⋯</button>
+            <button className="icon-btn" onClick={() => setMoreOpen((v) => !v)} aria-label="More">⋯</button>
             {moreOpen && (
               <>
                 <div className="more-scrim" onClick={() => setMoreOpen(false)} />
                 <div className="more-menu">
                   <Link href="/studio" className="more-item" onClick={() => setMoreOpen(false)}>⚙ Studio — edit agent prompts</Link>
-                  <a href="https://github.com/ShivangiJain1897/AI-Discovery/blob/claude/ai-discovery-payer-platform-tjx1ri/DEPLOY.md" target="_blank" rel="noopener noreferrer" className="more-item">🚀 Deploy guide</a>
-                  <a href="https://github.com/ShivangiJain1897/AI-Discovery/tree/claude/ai-discovery-payer-platform-tjx1ri" target="_blank" rel="noopener noreferrer" className="more-item">‹ › View code</a>
                 </div>
               </>
             )}
@@ -133,9 +140,4 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-main">{children}</div>
     </div>
   );
-}
-
-function firstLine(text: string): string {
-  const l = (text || "").trim().split(/\r?\n/)[0] || "Untitled";
-  return l.length > 34 ? l.slice(0, 31) + "…" : l;
 }

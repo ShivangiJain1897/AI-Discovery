@@ -10,9 +10,12 @@ export const dynamic = "force-dynamic";
 const VALID_CAPS = new Set(CAPABILITIES.map((c) => c.id));
 const VALID_TYPES = new Set<InputType>(["auto", "feature", "requirement", "transcript"]);
 
-/** GET /api/analyze — list sessions. */
-export async function GET() {
-  return NextResponse.json({ sessions: await listSessions() });
+/** GET /api/analyze — list sessions (optionally ?product=<id>). */
+export async function GET(req: Request) {
+  const productId = new URL(req.url).searchParams.get("product");
+  let sessions = await listSessions();
+  if (productId) sessions = sessions.filter((s) => s.productId === productId);
+  return NextResponse.json({ sessions });
 }
 
 /** POST /api/analyze — run selected capabilities against pasted input. */
@@ -22,6 +25,7 @@ export async function POST(req: Request) {
     inputType?: string;
     productContext?: string;
     capabilityIds?: string[];
+    productId?: string;
   } = {};
   try {
     body = await req.json();
@@ -53,6 +57,7 @@ export async function POST(req: Request) {
     turns: [],
     status: "running",
     mode,
+    productId: typeof body.productId === "string" ? body.productId : undefined,
     createdAt: Date.now(),
   };
   await saveSession(session);

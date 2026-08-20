@@ -3,9 +3,9 @@ import "./globals.css";
 import AppShell from "./components/AppShell";
 
 export const metadata: Metadata = {
-  title: "AI Discovery — Paste anything, pick what you need",
+  title: "AI Product Studio",
   description:
-    "A product discovery copilot: paste a feature idea, requirement, or transcript, then generate a PRD, requirements, market/competitive/feedback research, process & domain analysis, defect foresight, or a business-value case.",
+    "Run each product with a team of AI agents that surface signals — market, competitive, defect, regulatory, process, knowledge — and turn them into a prioritized backlog you own. Plus a Discovery chat inside every product.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

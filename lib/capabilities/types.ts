@@ -88,6 +88,8 @@ export interface AnalyzeSession {
   mode: "live" | "demo";
   createdAt: number;
   finishedAt?: number;
+  /** The product this discovery belongs to, if launched from one. */
+  productId?: string;
   /** Legacy single-shot fields (kept for older sessions). */
   capabilityIds?: string[];
   runs?: CapabilityRun[];

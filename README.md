@@ -1,15 +1,26 @@
-# AI Discovery
+# AI Product Studio
 
-A **product discovery copilot**, now a conversation:
+A studio that runs product management with AI. A PM manages **multiple products**, and each
+product gets a configurable **team of AI agents** that surface signals, which become a
+**prioritized backlog the PM owns**.
 
-- **Discovery (chat)** — paste anything (a feature idea, a written requirement, or a raw meeting
-  transcript), pick the capabilities you want, and get outputs as assistant messages. Follow up in
-  the same thread ("now do a competitive analysis on this") and it builds on prior turns.
-- **Studio** — see and edit the **prompt behind every agent** (each capability's system + task
-  prompt). Edits are saved and take effect immediately; reset to default anytime.
+- **Products** — create a product from a one-liner; the AI **drafts a structured brief** (users,
+  value prop, platform, market, regulatory context, KPIs) you refine.
+- **Agents** — per product, enable your AI team: Market, Competitive, Voice-of-Customer, Defect &
+  Reliability, Process, **Regulatory & Compliance**, **Knowledge Preservation**. Run them to
+  produce **signals**.
+- **Backlog** — an AI synthesizer turns signals into items scored on **Impact / Effort /
+  Confidence** and bucketed **Now / Next / Later / Icebox**. You reprioritize, edit, accept/dismiss,
+  and add items — **your edits stick** and won't be overwritten by re-generation.
+- **Discovery (chat)** — inside each product: paste a feature/requirement/transcript, pick
+  capabilities, and get outputs as a chat thread; follow up in context.
+- **Studio** — see and edit the **prompt behind every agent**.
 
-> The **Intake tracker** was split into its own product/repo (`use-case-tracker`) so a separate
-> team can own it. This app is Discovery-only.
+**Maturity path (labeled in-app):** agents run on-demand and reason over the product brief. The
+"connect to live code/telemetry/regulatory feeds and run continuously" upgrade (e.g. Knowledge
+Preservation reading your repo) is the next step.
+
+> The **Intake tracker** was split into its own repo (`use-case-tracker`) for a separate team.
 
 **Deploying it for a few people?** See [`DEPLOY.md`](./DEPLOY.md) — Vercel + a hosted Postgres +
 an optional shared password, ~15 minutes, no code changes.
