@@ -116,16 +116,6 @@ export default function WorkflowPage() {
     }
   }
 
-  async function setVerdict(agentId: string, findingId: string, verdict: Verdict) {
-    setWf((prev) => prev ? {
-      ...prev,
-      agents: prev.agents.map((a) => a.agentId !== agentId ? a : {
-        ...a, findings: a.findings.map((f) => f.id === findingId ? { ...f, verdict } : f),
-      }),
-    } : prev);
-    await patch({ agentId, findingId, verdict });
-  }
-
   async function generate(kind: "analysis" | "prd" | "backlog", variant?: "feature" | "product") {
     const key = kind === "prd" ? `prd-${variant}` : kind;
     setGenBusy(key); setError("");
@@ -226,16 +216,10 @@ export default function WorkflowPage() {
             {a.status === "error" && <div className="fs-err">Agent error: {a.error}</div>}
             <div className="fs-findings">
               {a.findings.map((f) => (
-                <div key={f.id} className={`finding v-${f.verdict ?? "none"}`}>
+                <div key={f.id} className="finding">
                   <div className="finding-body">
                     <div className="finding-title">{f.title}</div>
                     <div className="finding-detail">{f.detail}</div>
-                  </div>
-                  <div className="verdicts">
-                    <button className={`v-btn yes ${f.verdict === "correct" ? "on" : ""}`}
-                      onClick={() => setVerdict(a.agentId, f.id, f.verdict === "correct" ? null : "correct")} type="button">✓ Right</button>
-                    <button className={`v-btn no ${f.verdict === "incorrect" ? "on" : ""}`}
-                      onClick={() => setVerdict(a.agentId, f.id, f.verdict === "incorrect" ? null : "incorrect")} type="button">✕ Off</button>
                   </div>
                 </div>
               ))}
