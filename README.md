@@ -1,87 +1,43 @@
-# AI Product Studio
+# Discovery Studio
 
-A studio that runs product management with AI. A PM manages **multiple products**, and each
-product gets a configurable **team of AI agents** that surface signals, which become a
-**prioritized backlog the PM owns**.
+A chat-driven, human-in-the-loop **product discovery** workflow. Drop in a problem, an idea, a
+requirement, or a raw transcript, and a team of AI agents figures out what they need to know,
+surfaces findings you validate, and turns it into a **PRD or backlog you own**.
 
-- **Products** — create a product from a one-liner; the AI **drafts a structured brief** (users,
-  value prop, platform, market, regulatory context, KPIs) you refine.
-- **Agents** — per product, enable your AI team: Market, Competitive, Voice-of-Customer, Defect &
-  Reliability, Process, **Regulatory & Compliance**, **Knowledge Preservation**. Run them to
-  produce **signals**.
-- **Backlog** — an AI synthesizer turns signals into items scored on **Impact / Effort /
-  Confidence** and bucketed **Now / Next / Later / Icebox**. You reprioritize, edit, accept/dismiss,
-  and add items — **your edits stick** and won't be overwritten by re-generation.
-- **Discovery (chat)** — inside each product: paste a feature/requirement/transcript, pick
-  capabilities, and get outputs as a chat thread; follow up in context.
-- **Studio** — see and edit the **prompt behind every agent**.
+The whole thing is one loop, born from a single chat box:
 
-**Maturity path (labeled in-app):** agents run on-demand and reason over the product brief. The
-"connect to live code/telemetry/regulatory feeds and run continuously" upgrade (e.g. Knowledge
-Preservation reading your repo) is the next step.
+**Say anything → agents intake what they need → you validate the findings → generate.**
 
-> The **Intake tracker** was split into its own repo (`use-case-tracker`) for a separate team.
+## The flow
+
+1. **Chat entry.** Type a problem/idea/solution/requirement or paste a transcript. Tag the input
+   type or let the **orchestrator auto-detect** it. Pick which agents work the case.
+2. **The agent team.** Six lenses, each with its own intake and findings:
+   - 🧑‍🔬 **User Research** — who the users are, their jobs, needs, and pains.
+   - ⚙️ **Process Mining** — the current process, handoffs, manual steps, bottlenecks.
+   - 🐞 **Defect Detection** — current defects and reliability issues in the experience.
+   - 📈 **Market & Competitive** — market framing, competitors, shifting expectations.
+   - ⚖️ **Regulatory & Environment** — government regulations, PHI, compliance (HIPAA/CMS-aware).
+   - 🎯 **Business Priority** — business goals, value, effort, strategic priority.
+3. **Per-agent intake.** Each agent needs a few questions answered — almost like a form. The input
+   (especially a transcript) **auto-populates** what it can. A **side panel** shows what got
+   **captured** vs. what's **still needed**, and prompts you to fill the gaps.
+4. **Sectioned findings.** Every agent returns a section of specific findings.
+5. **Validate & augment.** Mark each finding **Right** or **Off**, and add "also consider…" notes.
+   Your validation shapes what gets generated.
+6. **Generate.** Turn the validated findings into a **PRD** or a **prioritized backlog**.
+
+It runs out of the box in **demo mode** (deterministic, illustrative outputs, no API key) and
+switches to **live outputs powered by Claude** the moment you add an API key. In healthcare/payer
+contexts (member, claim, provider, PHI…) the agents automatically pull in the right domain and
+regulatory framing.
+
+> The earlier Intake tracker was split into its own repo (`use-case-tracker`) for a separate team.
 
 **Deploying it for a few people?** See [`DEPLOY.md`](./DEPLOY.md) — Vercel + a hosted Postgres +
 an optional shared password, ~15 minutes, no code changes.
 
-It runs out of the box in **demo mode** (illustrative, deterministic outputs, no API key) and
-switches to **live outputs powered by Claude** the moment you add an API key. Duplicate detection
-works with no key.
-
 > New here? [`SETUP.md`](./SETUP.md) has step-by-step run instructions and troubleshooting.
-
----
-
-## The idea
-
-Discovery today is slow and scattered across docs, decks, and tools. This reframes it as one
-simple loop:
-
-**Paste anything → pick capabilities → get structured outputs.**
-
-You bring the raw material; you choose the lenses. Each capability produces a clean, uniform
-output card you can read, copy, and act on.
-
-### Capabilities
-
-| | Capability | What you get |
-|---|---|---|
-| 📄 | **PRD** | A structured product requirements document |
-| ✅ | **Detailed Requirements** | User stories + testable acceptance criteria |
-| 🌐 | **Market Research** | Market context, trends, and where the idea fits |
-| 📈 | **Competitive Analysis** | Who does this, how — strengths, gaps, differentiation |
-| 💬 | **Feedback Analysis** | Themes and sentiment users express about this kind of feature |
-| ⚙️ | **Process & Domain Analysis** | Workflows, systems, roles, and domain constraints touched |
-| 🐞 | **Defect Foresight** | Common defects & failure modes to anticipate (matures into live production detection) |
-| 📊 | **Business Value — Quantifiable** | Value drivers + a metrics estimation template |
-| ✨ | **Business Value — Qualitative** | Strategic, experiential, and risk value |
-
-Pick one or many. They run in parallel and each returns a card with sections, bullets, and tables.
-Any completed session has a **→ Send to intake** button that promotes it into the tracker.
-
-### Intake tracker
-
-A lightweight, team-facing tracker for use cases worth pursuing. Each record captures the **area**
-it comes from, **business / technology / data stakeholders**, the **data** involved, the
-**platform**, what's **TBD**, a **status**, and a running **team-activity** trail. Two smart bits:
-
-- **Duplicate detection** — as you add a use case, it flags similar existing ones with a match
-  score and the shared terms ("looks similar to X, Y, Z"), so two teams don't build the same thing.
-- **Compare** — select multiple use cases and see them side by side with an overlap summary.
-
-It **persists to disk** (`.data/intake.json`), so the tracker survives restarts — no database
-required for the pilot.
-
-### The maturity path (built-in)
-
-Some capabilities show a "→" note describing what they become at maturity — the honest version of
-"real":
-
-- **Market / Competitive / Feedback** → agents that *fetch and cite* live sources instead of
-  reasoning from the model's knowledge.
-- **Defect Foresight** → *connects to the production platform* to detect real, live defects
-  instead of anticipating likely ones.
 
 ---
 
@@ -92,7 +48,8 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-Paste something, choose your capabilities, click **Generate**. Works with **no API key**.
+Type a problem or paste a transcript, pick your agents, click **Run discovery**. Works with **no
+API key**.
 
 ### Enable live outputs (Claude)
 
@@ -101,8 +58,9 @@ cp .env.example .env.local
 # set ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-The badge flips from **Demo mode** to **Live · Claude**, and every capability is produced by Claude
-from your actual input. Override the model with `ANTHROPIC_MODEL`.
+The badge flips from **Demo mode** to **Live · Claude**, and classification, intake extraction,
+findings, and generated documents are all produced by Claude from your actual input. Override the
+model with `ANTHROPIC_MODEL`.
 
 ---
 
@@ -110,83 +68,44 @@ from your actual input. Override the model with `ANTHROPIC_MODEL`.
 
 ```
 app/
-  page.tsx                     Discovery composer: paste input, pick capabilities, generate
-  session/[id]/page.tsx        Results: output cards + "Send to intake"
-  intake/
-    page.tsx                   Tracker (list, filter, select-to-compare)
-    new/page.tsx               New use case form with live duplicate warning
-    [id]/page.tsx              Use case detail: edit, status, team activity, related
-    compare/page.tsx           Side-by-side comparison + overlap
+  page.tsx                     Chat entry: input + type + agent picker → create workflow
+  w/[id]/page.tsx              Workflow view: stepper (Intake → Findings → Generate),
+                               intake side-drawer (captured vs needed), findings with
+                               Right/Off validation + augment notes, PRD/backlog output
+  components/Shell.tsx         Constant sidebar: New discovery + history + mode badge
   api/
-    capabilities/route.ts      Capability catalog + mode
-    analyze/route.ts           POST = run capabilities, GET = list sessions
-    analyze/[id]/route.ts      GET one session
-    intake/route.ts            GET list / POST create (returns similar)
-    intake/[id]/route.ts       GET / PATCH (edit + add contribution)
-    intake/similar/route.ts    POST draft similarity check (live warning)
-    intake/compare/route.ts    POST compare 2-4 use cases
-  components/shared.tsx        Top bar + nav + status pill
+    agents/route.ts            Agent catalog (no system prompts) + mode
+    workflow/route.ts          GET list / POST create (classify + suggest agents)
+    workflow/[id]/route.ts     GET / PATCH (intake, verdicts, notes, stage) / DELETE
+    workflow/[id]/select/route.ts   Set selected agents + auto-extract each one's intake
+    workflow/[id]/run/route.ts      Run selected agents → findings
+    workflow/[id]/generate/route.ts Generate PRD / backlog from validated findings
   globals.css                  Futuristic light design system
 
 lib/
-  capabilities/
-    types.ts                   AnalyzeInput, CapabilityOutput, AnalyzeSession
-    registry.ts                The capability catalog (add one here)
-    run.ts                     Per-capability prompts + live/demo runner
-    seeds.ts                   Demo-mode templates (input woven in via placeholders)
-    analyze.ts                 Runs selected capabilities in parallel
-  intake/
-    types.ts                   UseCase, statuses, contributions
-    store.ts                   File-backed persistence (.data/intake.json)
-    similarity.ts              Deterministic cosine similarity + shared terms
+  workflow/
+    types.ts                   Workflow, AgentState, IntakeField, Finding, GeneratedOutput
+    agents.ts                  The six agents: intake questions, extractIntake, runAgent
+    orchestrator.ts            classifyInput (auto-detect type) + suggestAgents
+    generate.ts                PRD / backlog from validated (non-rejected) findings + notes
+    store.ts                   Persistence via the storage collection abstraction
   llm/
-    provider.ts                LlmProvider interface + auto-selection
+    provider.ts                LlmProvider interface + auto-selection (live vs demo)
     anthropic.ts               Live provider (Claude)
-    mock.ts                    Demo provider
-  store.ts                     In-memory session store (swap for a DB — see roadmap)
-
-  # Payer value-chain engine (heritage; reusable building blocks)
-  domain/member-value-chain.ts Payer member value chain: stages, personas, KPIs
-  agents/                      Domain / defect / market / process agents + orchestrator
-  sources/                     Real App Store review client + clustering (grounding)
-scripts/                       reviews:probe + offline grounding tests
+    mock.ts                    Demo provider (deterministic generators do the work)
+  storage/
+    collection.ts              Swappable persistence (file store / Postgres)
 ```
 
 **Design choices that make this extensible:**
 
-- **One capability shape.** Every capability returns `{ title, summary, sections[] }`, so a single
-  renderer displays all of them and adding a capability is one registry entry + one prompt + one
-  seed.
-- **One provider interface.** Capabilities never touch the SDK. Live vs. demo is a single swap in
-  `getProvider()`.
-- **Input woven into demo.** Demo seeds embed your actual pasted text via `{{INPUT}}` placeholders,
-  so it feels responsive without pretending to have analyzed the text.
-
-### Heritage: the payer value-chain engine
-
-The earlier build — a four-agent discovery over a payer's **member value chain**, including the
-**Defect agent grounded in real App Store reviews** — still lives under `lib/` and is fully
-functional:
-
-```bash
-npm run reviews:probe -- "Aetna Health"   # real App Store reviews → grounded defects with links
-npm run test:grounding                     # offline tests: Apple-schema parsing + clustering
-```
-
-These are the building blocks the "maturity path" above grows into (real fetching, real defect
-detection).
-
----
-
-## Roadmap to production
-
-1. **Ground the research capabilities** — give Market/Competitive/Feedback real web retrieval with
-   citations (the App Store review grounding under `lib/sources` is the template).
-2. **Connect Defect Foresight to production** — telemetry, error tracking, session replay.
-3. **Persistence & multi-tenant** — replace `lib/store.ts` with a database; org/workspace scoping.
-4. **Human-in-the-loop** — edit/accept/export outputs, push to Jira/Confluence/Docs.
-5. **Trust & compliance** — provenance on every claim, PHI handling (HIPAA), audit logs, RBAC.
-6. **Streaming** — stream each capability's output as it completes (SSE) instead of polling.
+- **One workflow object.** Everything a user does — input type, per-agent intake, findings
+  verdicts, augment notes, generated outputs — lives on the `Workflow`, so the flow is resumable
+  and auditable, and each API call is a small mutation on it.
+- **One provider interface.** Agents never touch the SDK. Live vs. demo is a single branch on
+  `provider.mode`; demo mode uses deterministic generators so the whole loop works with no key.
+- **Add an agent in one place.** A new lens is one entry in `AGENTS` (name, blurb, intake
+  questions, system persona) — extraction, running, and the UI pick it up automatically.
 
 ---
 
@@ -198,7 +117,17 @@ All persistence goes through one abstraction (`lib/storage/collection.ts`):
 - **Production:** set `DATABASE_URL` and it uses **Postgres** (tables auto-create; each row a JSONB
   document). This is what makes the app deployable — a cloud host's filesystem is ephemeral.
 
-Collections: `use_cases` (intake), `sessions` (discovery), `prompt_overrides` (Studio edits).
+Collection: `workflows` (one document per discovery).
+
+## Roadmap to production
+
+1. **Ground the research agents** — give User Research / Market / Competitive real retrieval with
+   citations instead of reasoning from the model's knowledge.
+2. **Connect Defect Detection to production** — telemetry, error tracking, session replay for real
+   defects instead of anticipated ones.
+3. **Streaming** — stream each agent's findings as it completes (SSE) instead of running as a batch.
+4. **Export** — push generated PRDs/backlogs to Jira/Confluence/Docs.
+5. **Trust & compliance** — provenance on every finding, PHI handling (HIPAA), audit logs, RBAC.
 
 ## Notes
 

@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import AppShell from "./components/AppShell";
+import Shell from "./components/Shell";
 
 export const metadata: Metadata = {
-  title: "AI Product Studio",
+  title: "Discovery Studio",
   description:
-    "Run each product with a team of AI agents that surface signals — market, competitive, defect, regulatory, process, knowledge — and turn them into a prioritized backlog you own. Plus a Discovery chat inside every product.",
+    "Turn a problem, idea, or transcript into product discovery: a team of AI agents (user research, process, defects, market, regulatory, business priority) intake what they need, surface findings you validate, and generate a PRD or backlog you own.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <AppShell>{children}</AppShell>
+        <Shell>{children}</Shell>
       </body>
     </html>
   );
