@@ -51,9 +51,14 @@ export interface AgentState {
   error?: string;
 }
 
+/** PRD flavor: a single feature vs. a whole product. */
+export type PrdVariant = "feature" | "product";
+
 export interface GeneratedOutput {
   id: string;
   kind: "prd" | "backlog";
+  /** For PRDs: feature-level or full-product. */
+  variant?: PrdVariant;
   title: string;
   /** Sectioned document (PRD) or list (backlog) rendered as sections. */
   sections: { heading: string; body?: string; bullets?: string[] }[];
@@ -65,6 +70,12 @@ export interface Workflow {
   input: string;
   inputType: InputType;
   detectedType?: InputType;
+  /**
+   * Foundation shown for EVERY discovery, before the agents: industry,
+   * business process, objective, and where it's coming from. Auto-captured
+   * from the input; the user completes the gaps.
+   */
+  context: IntakeField[];
   stage: Stage;
   agents: AgentState[];
   outputs: GeneratedOutput[];

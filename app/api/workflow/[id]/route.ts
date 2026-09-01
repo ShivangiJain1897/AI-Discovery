@@ -25,6 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   let b: {
     inputType?: InputType;
     stage?: Stage;
+    context?: { id: string; value: string }[];
     agentId?: string;
     fields?: { id: string; value: string }[];
     findingId?: string;
@@ -39,6 +40,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (b.inputType) w.inputType = b.inputType;
   if (b.stage) w.stage = b.stage;
+
+  // Business-context foundation fields (workflow-level).
+  if (Array.isArray(b.context)) {
+    for (const f of b.context) {
+      const field = w.context?.find((x) => x.id === f.id);
+      if (field) {
+        field.value = String(f.value ?? "");
+        field.captured = false; // user-provided now
+      }
+    }
+  }
 
   const agent = b.agentId ? w.agents.find((a) => a.agentId === b.agentId) : undefined;
   if (agent) {

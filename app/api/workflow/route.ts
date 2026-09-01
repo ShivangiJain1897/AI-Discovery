@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { classifyInput, suggestAgents } from "@/lib/workflow/orchestrator";
+import { classifyInput, extractContext, suggestAgents } from "@/lib/workflow/orchestrator";
 import { AGENTS } from "@/lib/workflow/agents";
 import { listWorkflows, newWorkflowId, saveWorkflow } from "@/lib/workflow/store";
 import type { AgentState, InputType, Workflow } from "@/lib/workflow/types";
@@ -28,9 +28,11 @@ export async function POST(req: Request) {
   const detected = await classifyInput(input);
   const inputType = requested === "auto" ? detected : requested;
 
-  const suggested = new Set(
-    Array.isArray(body.agentIds) && body.agentIds.length ? body.agentIds : await suggestAgents(input)
-  );
+  const [context, suggestedList] = await Promise.all([
+    extractContext(input, inputType),
+    Array.isArray(body.agentIds) && body.agentIds.length ? Promise.resolve(body.agentIds) : suggestAgents(input),
+  ]);
+  const suggested = new Set(suggestedList);
 
   const agents: AgentState[] = AGENTS.map((a) => ({
     agentId: a.id,
@@ -46,6 +48,7 @@ export async function POST(req: Request) {
     input,
     inputType,
     detectedType: detected,
+    context,
     stage: "framing",
     agents,
     outputs: [],

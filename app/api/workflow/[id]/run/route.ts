@@ -25,10 +25,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const toRun = w.agents.filter((a) => a.selected && (!subset || subset.has(a.agentId)));
   if (toRun.length === 0) return NextResponse.json({ error: "No agents selected." }, { status: 400 });
 
+  // Give every agent the shared business-context foundation as a preamble.
+  const ctx = (w.context ?? []).filter((f) => f.value.trim());
+  const preamble = ctx.length
+    ? `BUSINESS CONTEXT:\n${ctx.map((f) => `- ${f.question} ${f.value}`).join("\n")}\n\n`
+    : "";
+  const groundedInput = preamble + w.input;
+
   await Promise.all(
     toRun.map(async (a) => {
       try {
-        const { summary, findings } = await runAgent(a.agentId, w.input, a.intake);
+        const { summary, findings } = await runAgent(a.agentId, groundedInput, a.intake);
         a.summary = summary;
         a.findings = findings;
         a.status = "complete";

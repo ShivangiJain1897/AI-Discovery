@@ -13,24 +13,31 @@ interface AgentState {
   summary?: string; findings: Finding[]; userNotes?: string; error?: string;
 }
 interface OutputSection { heading: string; body?: string; bullets?: string[] }
-interface GeneratedOutput { id: string; kind: "prd" | "backlog"; title: string; sections: OutputSection[]; createdAt: number }
+interface GeneratedOutput { id: string; kind: "prd" | "backlog"; variant?: "feature" | "product"; title: string; sections: OutputSection[]; createdAt: number }
 interface Workflow {
   id: string; input: string; inputType: string; detectedType?: string;
+  context: IntakeField[];
   stage: "framing" | "intake" | "findings" | "generate";
   agents: AgentState[]; outputs: GeneratedOutput[]; mode: "live" | "demo";
   createdAt: number; updatedAt: number;
 }
 
-const META: Record<string, { name: string; icon: string }> = {
-  user_research: { name: "User Research", icon: "🧑‍🔬" },
-  process_mining: { name: "Process Mining", icon: "⚙️" },
-  defect_detection: { name: "Defect Detection", icon: "🐞" },
-  market: { name: "Market & Competitive", icon: "📈" },
-  regulatory: { name: "Regulatory & Environment", icon: "⚖️" },
-  business_priority: { name: "Business Priority", icon: "🎯" },
+const CONTEXT_KEY = "__context__";
+
+const META: Record<string, { name: string; icon: string; why: string }> = {
+  user_research: { name: "User Research", icon: "🧑‍🔬", why: "To ground findings in who the users really are and what they're trying to do." },
+  process_mining: { name: "Process Mining", icon: "⚙️", why: "To map the real end-to-end process and find where it breaks." },
+  defect_detection: { name: "Defect Detection", icon: "🐞", why: "To anticipate the defects and failure states that hurt the experience." },
+  market: { name: "Market & Competitive", icon: "📈", why: "To frame the market, competitors, and shifting expectations." },
+  regulatory: { name: "Regulatory & Environment", icon: "⚖️", why: "To surface the regulations, PHI/PII, and compliance constraints that apply." },
+  business_priority: { name: "Business Priority", icon: "🎯", why: "To connect the work to business goals, value, and effort." },
 };
-const nameOf = (id: string) => META[id]?.name ?? id;
-const iconOf = (id: string) => META[id]?.icon ?? "✦";
+const nameOf = (id: string) => (id === CONTEXT_KEY ? "Business Context" : META[id]?.name ?? id);
+const iconOf = (id: string) => (id === CONTEXT_KEY ? "🧭" : META[id]?.icon ?? "✦");
+const whyOf = (id: string) =>
+  id === CONTEXT_KEY
+    ? "Every discovery starts here — the industry, business process, and objective behind the request. It grounds every agent and heads the PRD."
+    : META[id]?.why ?? "";
 
 const STEPS: { id: Workflow["stage"]; label: string }[] = [
   { id: "intake", label: "Intake" },
@@ -46,8 +53,8 @@ export default function WorkflowPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
-  const [openAgent, setOpenAgent] = useState<string | null>(null);
-  const [genBusy, setGenBusy] = useState<"prd" | "backlog" | null>(null);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [genBusy, setGenBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -75,7 +82,11 @@ export default function WorkflowPage() {
     return j.workflow as Workflow;
   }
 
-  async function saveField(agentId: string, fieldId: string, value: string) {
+  // Optimistic local edits; commit on blur.
+  function editContext(fieldId: string, value: string) {
+    setWf((prev) => prev ? { ...prev, context: prev.context.map((f) => f.id === fieldId ? { ...f, value, captured: false } : f) } : prev);
+  }
+  function editAgentField(agentId: string, fieldId: string, value: string) {
     setWf((prev) => prev ? {
       ...prev,
       agents: prev.agents.map((a) => a.agentId !== agentId ? a : {
@@ -83,21 +94,20 @@ export default function WorkflowPage() {
       }),
     } : prev);
   }
-  async function commitField(agentId: string, fieldId: string, value: string) {
-    await patch({ agentId, fields: [{ id: fieldId, value }] });
+  function commit(key: string, fieldId: string, value: string) {
+    if (key === CONTEXT_KEY) return patch({ context: [{ id: fieldId, value }] });
+    return patch({ agentId: key, fields: [{ id: fieldId, value }] });
   }
 
   async function runAll() {
-    setRunning(true);
-    setError("");
+    setRunning(true); setError("");
     try {
       const r = await fetch(`/api/workflow/${id}/run`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Run failed.");
-      setWf(j.workflow);
-      setOpenAgent(null);
+      setWf(j.workflow); setOpenKey(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed.");
     } finally {
@@ -115,12 +125,12 @@ export default function WorkflowPage() {
     await patch({ agentId, findingId, verdict });
   }
 
-  async function generate(kind: "prd" | "backlog") {
-    setGenBusy(kind);
-    setError("");
+  async function generate(kind: "prd" | "backlog", variant?: "feature" | "product") {
+    const key = kind === "prd" ? `prd-${variant}` : "backlog";
+    setGenBusy(key); setError("");
     try {
       const r = await fetch(`/api/workflow/${id}/generate`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, variant }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Generate failed.");
@@ -142,13 +152,15 @@ export default function WorkflowPage() {
   if (error && !wf) return <div className="wf-wrap"><div className="wf-error">{error}</div></div>;
   if (!wf) return null;
 
+  const ctx = wf.context ?? [];
   const hasFindings = selected.some((a) => a.findings.length > 0);
   const currentStep: Workflow["stage"] = wf.stage === "framing" ? "intake" : wf.stage;
-  const openState = openAgent ? wf.agents.find((a) => a.agentId === openAgent) : null;
+  const openFields: IntakeField[] =
+    openKey === CONTEXT_KEY ? ctx : (wf.agents.find((a) => a.agentId === openKey)?.intake ?? []);
 
   return (
     <div className="wf-wrap">
-      {/* Header: the original input */}
+      {/* Header */}
       <div className="wf-head">
         <div className="wf-head-main">
           <div className="wf-kicker">
@@ -181,34 +193,36 @@ export default function WorkflowPage() {
       {/* ---------------------------- INTAKE ---------------------------- */}
       {currentStep === "intake" && (
         <section className="wf-stage">
-          <div className="stage-lead">
+          {/* Foundation: business context, always first */}
+          <div className="foundation">
+            <div className="foundation-head">
+              <span className="fnd-eyebrow">Start here · Foundation</span>
+              <h2>Business context</h2>
+              <p className="muted">
+                Before the users and the agents: the industry, the business process, and the
+                objective behind this. It grounds every agent and heads your PRD.
+              </p>
+            </div>
+            <IntakeRow
+              itemKey={CONTEXT_KEY}
+              fields={ctx}
+              onOpen={() => setOpenKey(CONTEXT_KEY)}
+              foundation
+            />
+          </div>
+
+          <div className="stage-lead mt">
             <h2>What each agent needs</h2>
             <p className="muted">
-              We pre-filled what your input already answered. Open each agent to review captured
-              details and fill what&apos;s still needed, then run the team.
+              Each agent works like a mini-form. We pre-filled what your input already answered —
+              open one to review the captured details and complete what&apos;s still needed.
             </p>
           </div>
 
           <div className="intake-list">
-            {selected.map((a) => {
-              const needed = a.intake.filter((f) => f.required && !f.value.trim());
-              const captured = a.intake.filter((f) => f.value.trim());
-              return (
-                <button key={a.agentId} className="intake-row" onClick={() => setOpenAgent(a.agentId)} type="button">
-                  <span className="ir-ico">{iconOf(a.agentId)}</span>
-                  <span className="ir-main">
-                    <span className="ir-name">{nameOf(a.agentId)}</span>
-                    <span className="ir-stats">
-                      <span className="pill captured">{captured.length} captured</span>
-                      {needed.length > 0
-                        ? <span className="pill needed">{needed.length} still needed</span>
-                        : <span className="pill ok">ready</span>}
-                    </span>
-                  </span>
-                  <span className="ir-go">Review →</span>
-                </button>
-              );
-            })}
+            {selected.map((a) => (
+              <IntakeRow key={a.agentId} itemKey={a.agentId} fields={a.intake} onOpen={() => setOpenKey(a.agentId)} />
+            ))}
           </div>
 
           <div className="stage-actions">
@@ -225,6 +239,21 @@ export default function WorkflowPage() {
       {/* --------------------------- FINDINGS --------------------------- */}
       {(currentStep === "findings" || currentStep === "generate") && (
         <section className="wf-stage">
+          {/* Context recap */}
+          {ctx.some((f) => f.value.trim()) && (
+            <div className="ctx-recap">
+              <div className="ctx-recap-head">
+                <span>🧭 Business context</span>
+                <button className="fs-reopen" onClick={() => setOpenKey(CONTEXT_KEY)} type="button">edit</button>
+              </div>
+              <div className="ctx-chips">
+                {ctx.filter((f) => f.value.trim()).map((f) => (
+                  <span key={f.id} className="ctx-chip"><b>{shortLabel(f.question)}</b> {f.value}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="stage-lead">
             <h2>Findings</h2>
             <p className="muted">
@@ -241,9 +270,7 @@ export default function WorkflowPage() {
                   <span className="fs-name">{nameOf(a.agentId)}</span>
                   {a.summary && <span className="fs-summary">{a.summary}</span>}
                 </span>
-                <button className="fs-reopen" onClick={() => setOpenAgent(a.agentId)} type="button" title="Review intake">
-                  intake
-                </button>
+                <button className="fs-reopen" onClick={() => setOpenKey(a.agentId)} type="button" title="Review intake">intake</button>
               </div>
 
               {a.status === "error" && <div className="fs-err">Agent error: {a.error}</div>}
@@ -256,41 +283,35 @@ export default function WorkflowPage() {
                       <div className="finding-detail">{f.detail}</div>
                     </div>
                     <div className="verdicts">
-                      <button
-                        className={`v-btn yes ${f.verdict === "correct" ? "on" : ""}`}
-                        onClick={() => setVerdict(a.agentId, f.id, f.verdict === "correct" ? null : "correct")}
-                        type="button"
-                      >✓ Right</button>
-                      <button
-                        className={`v-btn no ${f.verdict === "incorrect" ? "on" : ""}`}
-                        onClick={() => setVerdict(a.agentId, f.id, f.verdict === "incorrect" ? null : "incorrect")}
-                        type="button"
-                      >✕ Off</button>
+                      <button className={`v-btn yes ${f.verdict === "correct" ? "on" : ""}`}
+                        onClick={() => setVerdict(a.agentId, f.id, f.verdict === "correct" ? null : "correct")} type="button">✓ Right</button>
+                      <button className={`v-btn no ${f.verdict === "incorrect" ? "on" : ""}`}
+                        onClick={() => setVerdict(a.agentId, f.id, f.verdict === "incorrect" ? null : "incorrect")} type="button">✕ Off</button>
                     </div>
                   </div>
                 ))}
                 {a.findings.length === 0 && <div className="fs-empty">No findings yet.</div>}
               </div>
 
-              <AugmentNote
-                value={a.userNotes ?? ""}
-                onSave={(v) => patch({ agentId: a.agentId, userNotes: v })}
-              />
+              <AugmentNote value={a.userNotes ?? ""} onSave={(v) => patch({ agentId: a.agentId, userNotes: v })} />
             </div>
           ))}
 
-          {/* Generate bar */}
           {hasFindings && (
             <div className="generate-bar">
               <div className="gb-lead">
                 <strong>Looks right?</strong> Turn the validated findings into a deliverable.
+                <span className="muted small block">A Feature PRD is focused; a Product PRD is the fuller document.</span>
               </div>
               <div className="gb-actions">
-                <button className="btn-gen" onClick={() => generate("prd")} disabled={genBusy !== null} type="button">
-                  {genBusy === "prd" ? "Generating…" : "Generate PRD"}
+                <button className="btn-gen" onClick={() => generate("prd", "feature")} disabled={genBusy !== null} type="button">
+                  {genBusy === "prd-feature" ? "Generating…" : "Feature PRD"}
+                </button>
+                <button className="btn-gen" onClick={() => generate("prd", "product")} disabled={genBusy !== null} type="button">
+                  {genBusy === "prd-product" ? "Generating…" : "Product PRD"}
                 </button>
                 <button className="btn-gen alt" onClick={() => generate("backlog")} disabled={genBusy !== null} type="button">
-                  {genBusy === "backlog" ? "Generating…" : "Generate Backlog"}
+                  {genBusy === "backlog" ? "Generating…" : "Backlog"}
                 </button>
               </div>
             </div>
@@ -305,8 +326,9 @@ export default function WorkflowPage() {
           {wf.outputs.map((o) => (
             <article key={o.id} className="doc">
               <div className="doc-head">
-                <span className={`doc-kind ${o.kind}`}>{o.kind === "prd" ? "PRD" : "Backlog"}</span>
+                <span className={`doc-kind ${o.kind}`}>{docTag(o)}</span>
                 <h3 className="doc-title">{o.title}</h3>
+                <button className="doc-dl" onClick={() => downloadDoc(o, wf)} type="button" title="Download as Markdown">↓ Download</button>
               </div>
               {o.sections.map((s, i) => (
                 <div key={i} className="doc-section">
@@ -317,21 +339,50 @@ export default function WorkflowPage() {
                   )}
                 </div>
               ))}
+              <div className="doc-foot muted small">
+                Download opens the Markdown so you can add detail in your editor of choice.
+              </div>
             </article>
           ))}
         </section>
       )}
 
       {/* --------------------- Intake drawer (side window) --------------- */}
-      {openState && (
+      {openKey && (
         <IntakeDrawer
-          agent={openState}
-          onClose={() => setOpenAgent(null)}
-          onChange={saveField}
-          onCommit={commitField}
+          itemKey={openKey}
+          fields={openFields}
+          onClose={() => setOpenKey(null)}
+          onChange={openKey === CONTEXT_KEY
+            ? (fid, v) => editContext(fid, v)
+            : (fid, v) => editAgentField(openKey, fid, v)}
+          onCommit={(fid, v) => commit(openKey, fid, v)}
         />
       )}
     </div>
+  );
+}
+
+/* ------------------------------ intake row ------------------------------ */
+function IntakeRow({
+  itemKey, fields, onOpen, foundation,
+}: { itemKey: string; fields: IntakeField[]; onOpen: () => void; foundation?: boolean }) {
+  const needed = fields.filter((f) => f.required && !f.value.trim());
+  const captured = fields.filter((f) => f.value.trim());
+  return (
+    <button className={`intake-row ${foundation ? "is-foundation" : ""}`} onClick={onOpen} type="button">
+      <span className="ir-ico">{iconOf(itemKey)}</span>
+      <span className="ir-main">
+        <span className="ir-name">{nameOf(itemKey)}</span>
+        <span className="ir-stats">
+          <span className="pill captured">{captured.length} captured</span>
+          {needed.length > 0
+            ? <span className="pill needed">{needed.length} still needed</span>
+            : <span className="pill ok">ready</span>}
+        </span>
+      </span>
+      <span className="ir-go">Review →</span>
+    </button>
   );
 }
 
@@ -345,37 +396,52 @@ function AugmentNote({ value, onSave }: { value: string; onSave: (v: string) => 
   }
   return (
     <div className="augment">
-      <textarea
-        className="augment-input"
+      <textarea className="augment-input"
         placeholder="Also consider… (context, constraints, corrections the agents missed)"
-        value={v}
-        onChange={(e) => setV(e.target.value)}
-        onBlur={() => onSave(v)}
-        rows={2}
-      />
+        value={v} onChange={(e) => setV(e.target.value)} onBlur={() => onSave(v)} rows={2} />
     </div>
   );
 }
 
 /* --------------------------- intake drawer ------------------------------ */
 function IntakeDrawer({
-  agent, onClose, onChange, onCommit,
+  itemKey, fields, onClose, onChange, onCommit,
 }: {
-  agent: AgentState;
+  itemKey: string;
+  fields: IntakeField[];
   onClose: () => void;
-  onChange: (agentId: string, fieldId: string, value: string) => void;
-  onCommit: (agentId: string, fieldId: string, value: string) => void;
+  onChange: (fieldId: string, value: string) => void;
+  onCommit: (fieldId: string, value: string) => void;
 }) {
-  const captured = agent.intake.filter((f) => f.value.trim());
-  const needed = agent.intake.filter((f) => !f.value.trim());
+  const captured = fields.filter((f) => f.value.trim());
+  const needed = fields.filter((f) => !f.value.trim());
+  const requiredTotal = fields.filter((f) => f.required).length;
+  const requiredDone = fields.filter((f) => f.required && f.value.trim()).length;
+  const pct = requiredTotal ? Math.round((requiredDone / requiredTotal) * 100) : 100;
   return (
     <>
       <div className="drawer-scrim" onClick={onClose} />
-      <aside className="drawer">
+      <aside className="drawer" role="dialog" aria-label={nameOf(itemKey)}>
         <div className="drawer-head">
-          <span className="dh-ico">{iconOf(agent.agentId)}</span>
-          <span className="dh-title">{nameOf(agent.agentId)}</span>
+          <span className="dh-ico">{iconOf(itemKey)}</span>
+          <span className="dh-titlewrap">
+            <span className="dh-title">{nameOf(itemKey)}</span>
+            <span className="dh-sub">Intake</span>
+          </span>
           <button className="dh-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+
+        {/* Explainer + progress */}
+        <div className="drawer-intro">
+          <p className="di-why">{whyOf(itemKey)}</p>
+          <div className="di-progress">
+            <div className="di-bar"><span style={{ width: `${pct}%` }} /></div>
+            <span className="di-count">{requiredDone}/{requiredTotal} required answered</span>
+          </div>
+          <p className="di-legend">
+            <span className="lg captured">Captured</span> was auto-filled from your input — edit if it&apos;s off.
+            <span className="lg needed">Needed</span> is what to add. Changes save automatically.
+          </p>
         </div>
 
         <div className="drawer-body">
@@ -385,9 +451,7 @@ function IntakeDrawer({
               <span className="dg-count">{captured.length}</span>
             </div>
             {captured.length === 0 && <p className="dg-empty">Nothing captured yet — fill the fields below.</p>}
-            {captured.map((f) => (
-              <Field key={f.id} agentId={agent.agentId} field={f} onChange={onChange} onCommit={onCommit} />
-            ))}
+            {captured.map((f) => <Field key={f.id} field={f} onChange={onChange} onCommit={onCommit} />)}
           </div>
 
           <div className="drawer-group">
@@ -396,9 +460,7 @@ function IntakeDrawer({
               <span className="dg-count">{needed.length}</span>
             </div>
             {needed.length === 0 && <p className="dg-empty">All set — nothing else needed.</p>}
-            {needed.map((f) => (
-              <Field key={f.id} agentId={agent.agentId} field={f} onChange={onChange} onCommit={onCommit} />
-            ))}
+            {needed.map((f) => <Field key={f.id} field={f} onChange={onChange} onCommit={onCommit} />)}
           </div>
         </div>
 
@@ -411,27 +473,59 @@ function IntakeDrawer({
 }
 
 function Field({
-  agentId, field, onChange, onCommit,
+  field, onChange, onCommit,
 }: {
-  agentId: string;
   field: IntakeField;
-  onChange: (agentId: string, fieldId: string, value: string) => void;
-  onCommit: (agentId: string, fieldId: string, value: string) => void;
+  onChange: (fieldId: string, value: string) => void;
+  onCommit: (fieldId: string, value: string) => void;
 }) {
   return (
     <label className={`ifield ${field.captured ? "was-captured" : ""}`}>
       <span className="ifield-q">
         {field.question}
         {field.required && <span className="req">*</span>}
+        {field.captured && <span className="auto-tag">auto</span>}
       </span>
-      <textarea
-        className="ifield-input"
-        value={field.value}
-        placeholder="Type your answer…"
-        onChange={(e) => onChange(agentId, field.id, e.target.value)}
-        onBlur={(e) => onCommit(agentId, field.id, e.target.value)}
-        rows={2}
-      />
+      <textarea className="ifield-input" value={field.value} placeholder="Type your answer…"
+        onChange={(e) => onChange(field.id, e.target.value)}
+        onBlur={(e) => onCommit(field.id, e.target.value)} rows={2} />
     </label>
   );
+}
+
+/* ------------------------------- helpers -------------------------------- */
+function shortLabel(question: string): string {
+  const q = question.toLowerCase();
+  if (q.includes("industry")) return "Industry";
+  if (q.includes("process")) return "Process";
+  if (q.includes("objective")) return "Objective";
+  if (q.includes("coming from")) return "Source";
+  if (q.includes("stakeholder")) return "Stakeholders";
+  return question.replace(/\?.*$/, "").slice(0, 18);
+}
+
+function docTag(o: GeneratedOutput): string {
+  if (o.kind === "backlog") return "Backlog";
+  return o.variant === "product" ? "Product PRD" : "Feature PRD";
+}
+
+function downloadDoc(o: GeneratedOutput, w: Workflow) {
+  const lines: string[] = [`# ${o.title}`, ""];
+  lines.push(`> Source ${w.inputType}: ${w.input.replace(/\s+/g, " ").trim()}`, "");
+  for (const s of o.sections) {
+    lines.push(`## ${s.heading}`, "");
+    if (s.body) lines.push(s.body, "");
+    if (s.bullets) { for (const b of s.bullets) lines.push(`- ${b}`); lines.push(""); }
+  }
+  lines.push("", "---", "_Generated with Discovery Studio — edit and expand as needed._");
+  const md = lines.join("\n");
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${o.title.replace(/\s+/g, "-").toLowerCase()}.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

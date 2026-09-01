@@ -12,14 +12,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!w) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   let kind: "prd" | "backlog" = "prd";
+  let variant: "feature" | "product" = "feature";
   try {
     const b = await req.json();
     if (b?.kind === "backlog") kind = "backlog";
+    if (b?.variant === "product") variant = "product";
   } catch {
-    /* default prd */
+    /* default: feature prd */
   }
 
-  const output = await generate(w, kind);
+  const output = await generate(w, kind, variant);
   w.outputs = [output, ...w.outputs];
   w.stage = "generate";
   await saveWorkflow(w);
