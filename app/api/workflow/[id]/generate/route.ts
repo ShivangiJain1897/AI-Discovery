@@ -11,11 +11,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const w = await getWorkflow(id);
   if (!w) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  let kind: "prd" | "backlog" = "prd";
+  let kind: "analysis" | "prd" | "backlog" = "prd";
   let variant: "feature" | "product" = "feature";
   try {
     const b = await req.json();
     if (b?.kind === "backlog") kind = "backlog";
+    else if (b?.kind === "analysis") kind = "analysis";
     if (b?.variant === "product") variant = "product";
   } catch {
     /* default: feature prd */

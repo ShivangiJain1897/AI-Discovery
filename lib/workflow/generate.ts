@@ -3,13 +3,16 @@
  * Only findings the user didn't mark "incorrect" are used, plus their notes
  * and the business-context foundation.
  *
+ *   kind "analysis"                 → a discovery analysis (synthesis + per lens)
  *   kind "prd" + variant "feature"  → a focused, single-feature PRD
  *   kind "prd" + variant "product"  → a fuller, whole-product PRD
  *   kind "backlog"                  → a prioritized backlog
+ *
+ * All can be generated repeatedly, in any order, from the chat composer.
  */
 import { getProvider } from "../llm/provider";
 import { getAgent } from "./agents";
-import type { GeneratedOutput, PrdVariant, Workflow } from "./types";
+import type { GeneratedOutput, OutputKind, PrdVariant, Workflow } from "./types";
 
 interface Section { heading: string; body?: string; bullets?: string[] }
 
@@ -59,9 +62,13 @@ function contextText(w: Workflow): string {
   return Object.entries(c).map(([k, v]) => `- ${k}: ${v}`).join("\n");
 }
 
+function notesText(w: Workflow): string {
+  return (w.notes ?? []).filter((n) => n.trim()).map((n) => `- ${n}`).join("\n");
+}
+
 export async function generate(
   w: Workflow,
-  kind: "prd" | "backlog",
+  kind: OutputKind,
   variant: PrdVariant = "feature"
 ): Promise<GeneratedOutput> {
   const provider = await getProvider();
@@ -80,11 +87,13 @@ export async function generate(
 
   const isProduct = kind === "prd" && variant === "product";
   const title =
-    kind === "backlog"
-      ? "Prioritized backlog"
-      : isProduct
-        ? "Product PRD"
-        : "Feature PRD";
+    kind === "analysis"
+      ? "Discovery analysis"
+      : kind === "backlog"
+        ? "Prioritized backlog"
+        : isProduct
+          ? "Product PRD"
+          : "Feature PRD";
 
   return {
     id: `${kind}_${Math.random().toString(36).slice(2, 7)}`,
@@ -96,11 +105,14 @@ export async function generate(
   };
 }
 
-async function live(w: Workflow, kind: "prd" | "backlog", variant: PrdVariant, context: string): Promise<Section[]> {
+async function live(w: Workflow, kind: OutputKind, variant: PrdVariant, context: string): Promise<Section[]> {
   const provider = await getProvider();
   const shape = `Return JSON { "sections": [ { "heading": string, "body": string, "bullets": string[] } ] }.`;
   let ask: string;
-  if (kind === "backlog") {
+  if (kind === "analysis") {
+    ask =
+      "Write a DISCOVERY ANALYSIS report. Start with an 'Executive Synthesis' section drawing out the 3-4 cross-cutting themes. Then one analysis section PER lens present in the findings (e.g. 'User Research Analysis', 'Competitive & Market Analysis', 'Process Analysis', 'Defect Analysis', 'Regulatory Analysis', 'Business Value Analysis') — each with a short body interpreting what the findings mean (not just restating them) plus supporting bullets. End with 'What Stands Out' and 'Recommended Next Steps'. Be analytical and specific.";
+  } else if (kind === "backlog") {
     ask = "Produce a prioritized product backlog: sections grouped as Now / Next / Later, each with bullet items derived from the findings. Add a short 'How this was prioritized' note.";
   } else if (variant === "product") {
     ask =
@@ -109,9 +121,10 @@ async function live(w: Workflow, kind: "prd" | "backlog", variant: PrdVariant, c
     ask =
       "Write a detailed, single-FEATURE PRD. Include these sections in order: Overview; Business Context; Problem & Users; Goals & Non-Goals; User Stories & Acceptance Criteria; Functional Requirements; Edge Cases & Error States; Regulatory & Compliance; Dependencies & Risks; Success Metrics; Rollout Plan; Open Questions. Be concrete and ground it in the findings.";
   }
+  const notes = notesText(w);
   const raw = await provider.generateJson<{ sections?: Section[] }>({
     system: "You are a senior product manager turning validated discovery findings into a polished, detailed deliverable a team can act on.",
-    prompt: `ORIGINAL INPUT (${w.inputType}):\n"""\n${w.input.slice(0, 3000)}\n"""\n\nBUSINESS CONTEXT:\n${contextText(w) || "(none captured)"}\n\nVALIDATED FINDINGS:\n${context || "(none)"}\n\n${ask}\n\n${shape}`,
+    prompt: `ORIGINAL INPUT (${w.inputType}):\n"""\n${w.input.slice(0, 3000)}\n"""\n\nBUSINESS CONTEXT:\n${contextText(w) || "(none captured)"}\n\nVALIDATED FINDINGS:\n${context || "(none)"}\n${notes ? `\nADDED CONTEXT FROM THE USER:\n${notes}\n` : ""}\n${ask}\n\n${shape}`,
     maxTokens: 3600,
   });
   const s = Array.isArray(raw?.sections) ? raw.sections : [];
@@ -128,11 +141,13 @@ function norm(s: Section): Section {
 
 /* ------------------------------ demo (offline) --------------------------- */
 
-function demo(w: Workflow, kind: "prd" | "backlog", variant: PrdVariant): Section[] {
+function demo(w: Workflow, kind: OutputKind, variant: PrdVariant): Section[] {
   const { perAgent } = validatedContext(w);
   const clip = w.input.trim().replace(/\s+/g, " ").slice(0, 300);
   const c = contextMap(w);
   const ctxSec = contextSection(w);
+
+  if (kind === "analysis") return demoAnalysis(w, clip, c, ctxSec);
 
   if (kind === "backlog") {
     const now: string[] = [];
@@ -205,6 +220,75 @@ function demo(w: Workflow, kind: "prd" | "backlog", variant: PrdVariant): Sectio
   sections.push({ heading: "Success Metrics", bullets: metricsFor(c) });
   sections.push({ heading: "Rollout Plan", bullets: ["Ship behind a flag to a pilot cohort", "Instrument key events before scaling"] });
   sections.push({ heading: "Open Questions", bullets: openQuestions(w) });
+  return sections;
+}
+
+/** A discovery analysis: synthesis + one interpreted section per lens. */
+function demoAnalysis(
+  w: Workflow,
+  clip: string,
+  c: Record<string, string>,
+  ctxSec: Section | null
+): Section[] {
+  const ANALYSIS_TITLE: Record<string, string> = {
+    user_research: "User Research Analysis",
+    market: "Competitive & Market Analysis",
+    process_mining: "Process Analysis",
+    defect_detection: "Defect Analysis",
+    regulatory: "Regulatory Analysis",
+    business_priority: "Business Value Analysis",
+  };
+  const LENS: Record<string, string> = {
+    user_research: "Who the users are and what they need points to",
+    market: "The competitive picture suggests",
+    process_mining: "The current process indicates",
+    defect_detection: "The reliability signals imply",
+    regulatory: "The regulatory environment requires",
+    business_priority: "From a value standpoint",
+  };
+
+  const present = w.agents.filter((a) => a.selected && a.status === "complete");
+  const themes: string[] = [];
+  for (const a of present) {
+    const kept = a.findings.filter((f) => f.verdict !== "incorrect");
+    if (kept[0]) themes.push(`${getAgent(a.agentId)?.name}: ${kept[0].title}`);
+  }
+
+  const sections: Section[] = [
+    {
+      heading: "Executive Synthesis",
+      body: `This analysis pulls together ${present.length} lenses on “${clip}”. The through-line: the objective is to ${lower(c.objective || "improve the target outcome")}, and the findings converge on a few themes below.`,
+      bullets: themes.slice(0, 5),
+    },
+  ];
+  if (ctxSec) sections.push(ctxSec);
+
+  for (const a of present) {
+    const kept = a.findings.filter((f) => f.verdict !== "incorrect");
+    if (kept.length === 0 && !a.userNotes) continue;
+    const heading = ANALYSIS_TITLE[a.agentId] || `${getAgent(a.agentId)?.name} Analysis`;
+    const lead = LENS[a.agentId] || "The findings indicate";
+    const top = kept[0];
+    const body = top
+      ? `${lead} ${lower(top.title)}. ${top.detail} Taken together, the findings below shape how to act.`
+      : "The team added context worth carrying forward.";
+    const bullets = kept.map((f) => `${f.title} — ${f.detail}`);
+    if (a.userNotes) bullets.push(`(Team note) ${a.userNotes}`);
+    sections.push({ heading, body, bullets });
+  }
+
+  sections.push({
+    heading: "What Stands Out",
+    bullets: themes.length
+      ? [`Strongest signal: ${themes[0]}`, "Multiple lenses reinforce the same core pain", "Biggest unknowns are the still-open questions below"]
+      : ["Run the agents to surface findings, then regenerate this analysis."],
+  });
+  sections.push({ heading: "Recommended Next Steps", bullets: [
+    "Validate the top findings with real users / data before committing",
+    "Generate a Feature PRD for the highest-value slice",
+    "Use the backlog to sequence the rest",
+    ...openQuestions(w).slice(0, 3).map((q) => `Resolve: ${q}`),
+  ] });
   return sections;
 }
 

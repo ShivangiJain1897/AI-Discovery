@@ -2393,3 +2393,105 @@ table.tt tr.clickable:hover td {
 .doc-dl:hover { border-color: var(--brand); color: var(--brand); }
 .doc-foot { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border); }
 .gb-actions { flex-wrap: wrap; }
+
+/* ============================================================= */
+/* ==============  Discovery as a chat thread  ================= */
+/* ============================================================= */
+.thread-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.thread { flex: 1; padding: 24px 0 28px; }
+
+.thread-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 2px 18px; position: sticky; top: 0; z-index: 5;
+}
+.tt-main { display: flex; align-items: baseline; gap: 6px; }
+.tt-label { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+.tt-industry { font-size: 13px; color: var(--ink-faint); }
+
+/* messages */
+.msg { display: flex; gap: 12px; margin-bottom: 18px; }
+.msg.user { justify-content: flex-end; }
+.msg.agent { justify-content: flex-start; }
+.msg-avatar {
+  flex: none; width: 34px; height: 34px; border-radius: 999px;
+  display: grid; place-items: center; font-size: 18px;
+  background: var(--surface-solid); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.msg-bubble { max-width: 88%; }
+.msg-bubble.user {
+  background: linear-gradient(120deg, var(--brand), var(--brand-2));
+  color: #fff; border-radius: 18px 18px 4px 18px;
+  padding: 13px 16px; box-shadow: var(--shadow-sm);
+}
+.msg-bubble.user .type-tag { background: rgba(255,255,255,0.25); color: #fff; margin-bottom: 6px; display: inline-block; }
+.msg-bubble.agent {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px 18px 18px 18px; padding: 15px 18px;
+  box-shadow: var(--shadow-sm); width: 100%;
+}
+.msg-who { font-size: 12px; font-weight: 800; color: var(--brand); margin-bottom: 8px; letter-spacing: 0.01em; }
+.msg-input { font-size: 15px; line-height: 1.5; }
+.msg-lead { font-size: 14px; line-height: 1.55; color: var(--ink-soft); margin-bottom: 12px; }
+.msg-lead b { color: var(--ink); }
+.msg-tools { margin-top: 10px; }
+.mt10 { margin-top: 12px; }
+
+/* composer dock */
+.dock {
+  position: sticky; bottom: 0; z-index: 6;
+  margin: 0 -20px; padding: 12px 20px 16px;
+  background: linear-gradient(180deg, transparent, var(--bg) 22%);
+}
+.dock-inner {
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px; padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+.dock-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.dock-label { font-size: 12px; font-weight: 700; color: var(--ink-faint); margin-right: 2px; }
+.chip-gen {
+  border: 1px solid var(--border-strong); background: var(--surface-solid);
+  color: var(--ink); font-weight: 700; font-size: 13px;
+  padding: 7px 14px; border-radius: 999px; cursor: pointer; transition: all 0.12s ease;
+}
+.chip-gen:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); transform: translateY(-1px); }
+.chip-gen:disabled { opacity: 0.55; cursor: default; }
+.chip-gen.analysis { background: linear-gradient(120deg, var(--brand), var(--brand-2)); color: #fff; border-color: transparent; }
+.chip-gen.analysis:hover:not(:disabled) { color: #fff; box-shadow: var(--shadow-sm); }
+.chip-gen.ghost { border-style: dashed; color: var(--ink-faint); }
+
+.dock-input { display: flex; gap: 8px; align-items: flex-end; }
+.dock-textarea {
+  flex: 1; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface-solid); color: var(--ink); font: inherit; font-size: 14px;
+  padding: 11px 13px; resize: none; outline: none; max-height: 140px;
+}
+.dock-textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(109,94,252,0.13); }
+.dock-send {
+  flex: none; border: none; background: var(--ink); color: #fff;
+  font-weight: 700; font-size: 14px; padding: 11px 18px; border-radius: 12px; cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+.dock-send:disabled { opacity: 0.4; cursor: default; }
+.dock-hint { font-size: 11px; color: var(--ink-faint); margin-top: 8px; text-align: center; }
+
+/* reuse finding/doc styles inside bubbles: tighten spacing */
+.msg-bubble.agent .fs-findings { display: flex; flex-direction: column; gap: 8px; }
+.msg-bubble.agent .doc { border: none; box-shadow: none; padding: 0; background: transparent; }
+.msg-bubble.agent .doc-head { margin-bottom: 14px; }
+.doc-kind.analysis { background: rgba(0,212,200,0.16); color: #0a9d94; }
+
+@media (max-width: 720px) {
+  .msg-bubble { max-width: 100%; }
+  .dock-actions { gap: 6px; }
+  .chip-gen { font-size: 12px; padding: 6px 11px; }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 /* ------------------------------- types ---------------------------------- */
@@ -13,10 +13,10 @@ interface AgentState {
   summary?: string; findings: Finding[]; userNotes?: string; error?: string;
 }
 interface OutputSection { heading: string; body?: string; bullets?: string[] }
-interface GeneratedOutput { id: string; kind: "prd" | "backlog"; variant?: "feature" | "product"; title: string; sections: OutputSection[]; createdAt: number }
+interface GeneratedOutput { id: string; kind: "analysis" | "prd" | "backlog"; variant?: "feature" | "product"; title: string; sections: OutputSection[]; createdAt: number }
 interface Workflow {
   id: string; input: string; inputType: string; detectedType?: string;
-  context: IntakeField[];
+  context: IntakeField[]; notes?: string[];
   stage: "framing" | "intake" | "findings" | "generate";
   agents: AgentState[]; outputs: GeneratedOutput[]; mode: "live" | "demo";
   createdAt: number; updatedAt: number;
@@ -39,12 +39,6 @@ const whyOf = (id: string) =>
     ? "Every discovery starts here — the industry, business process, and objective behind the request. It grounds every agent and heads the PRD."
     : META[id]?.why ?? "";
 
-const STEPS: { id: Workflow["stage"]; label: string }[] = [
-  { id: "intake", label: "Intake" },
-  { id: "findings", label: "Findings" },
-  { id: "generate", label: "Generate" },
-];
-
 /* ================================ page ================================== */
 export default function WorkflowPage() {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +49,9 @@ export default function WorkflowPage() {
   const [running, setRunning] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [genBusy, setGenBusy] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -72,6 +69,11 @@ export default function WorkflowPage() {
   useEffect(() => { load(); }, [load]);
 
   const selected = useMemo(() => (wf ? wf.agents.filter((a) => a.selected) : []), [wf]);
+  const hasRun = selected.some((a) => a.status === "complete" || a.findings.length > 0);
+
+  function scrollDown() {
+    setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 60);
+  }
 
   async function patch(body: unknown) {
     const r = await fetch(`/api/workflow/${id}`, {
@@ -82,7 +84,6 @@ export default function WorkflowPage() {
     return j.workflow as Workflow;
   }
 
-  // Optimistic local edits; commit on blur.
   function editContext(fieldId: string, value: string) {
     setWf((prev) => prev ? { ...prev, context: prev.context.map((f) => f.id === fieldId ? { ...f, value, captured: false } : f) } : prev);
   }
@@ -107,7 +108,7 @@ export default function WorkflowPage() {
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Run failed.");
-      setWf(j.workflow); setOpenKey(null);
+      setWf(j.workflow); setOpenKey(null); scrollDown();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed.");
     } finally {
@@ -125,8 +126,8 @@ export default function WorkflowPage() {
     await patch({ agentId, findingId, verdict });
   }
 
-  async function generate(kind: "prd" | "backlog", variant?: "feature" | "product") {
-    const key = kind === "prd" ? `prd-${variant}` : "backlog";
+  async function generate(kind: "analysis" | "prd" | "backlog", variant?: "feature" | "product") {
+    const key = kind === "prd" ? `prd-${variant}` : kind;
     setGenBusy(key); setError("");
     try {
       const r = await fetch(`/api/workflow/${id}/generate`, {
@@ -134,11 +135,23 @@ export default function WorkflowPage() {
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Generate failed.");
-      setWf(j.workflow);
+      setWf(j.workflow); scrollDown();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generate failed.");
     } finally {
       setGenBusy(null);
+    }
+  }
+
+  async function sendNote() {
+    const text = draft.trim();
+    if (!text) return;
+    setSending(true);
+    try {
+      await patch({ note: text });
+      setDraft(""); scrollDown();
+    } finally {
+      setSending(false);
     }
   }
 
@@ -148,183 +161,102 @@ export default function WorkflowPage() {
     router.push("/");
   }
 
-  if (loading) return <div className="wf-wrap"><div className="wf-loading">Loading discovery…</div></div>;
-  if (error && !wf) return <div className="wf-wrap"><div className="wf-error">{error}</div></div>;
+  if (loading) return <div className="thread-wrap"><div className="wf-loading">Loading discovery…</div></div>;
+  if (error && !wf) return <div className="thread-wrap"><div className="wf-error">{error}</div></div>;
   if (!wf) return null;
 
   const ctx = wf.context ?? [];
-  const hasFindings = selected.some((a) => a.findings.length > 0);
-  const currentStep: Workflow["stage"] = wf.stage === "framing" ? "intake" : wf.stage;
+  const notes = wf.notes ?? [];
   const openFields: IntakeField[] =
     openKey === CONTEXT_KEY ? ctx : (wf.agents.find((a) => a.agentId === openKey)?.intake ?? []);
+  const industry = ctx.find((f) => f.id === "industry")?.value;
 
   return (
-    <div className="wf-wrap">
-      {/* Header */}
-      <div className="wf-head">
-        <div className="wf-head-main">
-          <div className="wf-kicker">
-            <span className={`type-tag ${wf.inputType}`}>{wf.inputType}</span>
-            {wf.detectedType && wf.detectedType !== wf.inputType && (
-              <span className="muted">· detected {wf.detectedType}</span>
-            )}
+    <div className="thread-wrap">
+      <div className="thread">
+        {/* Title row */}
+        <div className="thread-top">
+          <div className="tt-main">
+            <span className="tt-label">Discovery</span>
+            {industry && <span className="tt-industry">· {industry}</span>}
           </div>
-          <p className="wf-input">{wf.input}</p>
+          <button className="link-danger" onClick={remove} title="Delete discovery">Delete</button>
         </div>
-        <button className="link-danger" onClick={remove} title="Delete discovery">Delete</button>
-      </div>
 
-      {/* Stepper */}
-      <div className="stepper">
-        {STEPS.map((s, i) => {
-          const active = currentStep === s.id;
-          const done = STEPS.findIndex((x) => x.id === currentStep) > i;
-          return (
-            <div key={s.id} className={`step ${active ? "active" : ""} ${done ? "done" : ""}`}>
-              <span className="step-dot">{done ? "✓" : i + 1}</span>
-              <span className="step-label">{s.label}</span>
-            </div>
-          );
-        })}
-      </div>
+        {error && <div className="wf-error inline">{error}</div>}
 
-      {error && <div className="wf-error inline">{error}</div>}
+        {/* 1 — the user's input */}
+        <Msg role="user">
+          <span className={`type-tag ${wf.inputType}`}>{wf.inputType}</span>
+          <p className="msg-input">{wf.input}</p>
+        </Msg>
 
-      {/* ---------------------------- INTAKE ---------------------------- */}
-      {currentStep === "intake" && (
-        <section className="wf-stage">
-          {/* Foundation: business context, always first */}
-          <div className="foundation">
-            <div className="foundation-head">
-              <span className="fnd-eyebrow">Start here · Foundation</span>
-              <h2>Business context</h2>
-              <p className="muted">
-                Before the users and the agents: the industry, the business process, and the
-                objective behind this. It grounds every agent and heads your PRD.
-              </p>
-            </div>
-            <IntakeRow
-              itemKey={CONTEXT_KEY}
-              fields={ctx}
-              onOpen={() => setOpenKey(CONTEXT_KEY)}
-              foundation
-            />
-          </div>
+        {/* 2 — business context */}
+        <Msg role="agent" icon="🧭" who="Orchestrator">
+          <p className="msg-lead">
+            I read this as a <b>{wf.inputType}</b>{industry ? <> in <b>{industry}</b></> : null}. Let&apos;s start
+            with the business context — the foundation every agent builds on. Open it to review what I
+            captured and fill any gaps.
+          </p>
+          <IntakeRow itemKey={CONTEXT_KEY} fields={ctx} onOpen={() => setOpenKey(CONTEXT_KEY)} foundation />
+        </Msg>
 
-          <div className="stage-lead mt">
-            <h2>What each agent needs</h2>
-            <p className="muted">
-              Each agent works like a mini-form. We pre-filled what your input already answered —
-              open one to review the captured details and complete what&apos;s still needed.
-            </p>
-          </div>
-
+        {/* 3 — the agent team + intake (before/until run) */}
+        <Msg role="agent" icon="🤝" who="Orchestrator">
+          <p className="msg-lead">
+            I&apos;ve brought in {selected.length} agent{selected.length === 1 ? "" : "s"}. Each works like a
+            quick form — I pre-filled what your input answered. Review any and {hasRun ? "re-run" : "run"} when ready.
+          </p>
           <div className="intake-list">
             {selected.map((a) => (
               <IntakeRow key={a.agentId} itemKey={a.agentId} fields={a.intake} onOpen={() => setOpenKey(a.agentId)} />
             ))}
           </div>
-
-          <div className="stage-actions">
-            <button className="btn-go" onClick={runAll} disabled={running} type="button">
+          {!hasRun && (
+            <button className="btn-go mt10" onClick={runAll} disabled={running} type="button">
               {running ? "Running agents…" : `Run ${selected.length} agent${selected.length === 1 ? "" : "s"} →`}
             </button>
-            <span className="muted small">
-              You can run now and fill gaps later — findings improve as you add detail.
-            </span>
-          </div>
-        </section>
-      )}
-
-      {/* --------------------------- FINDINGS --------------------------- */}
-      {(currentStep === "findings" || currentStep === "generate") && (
-        <section className="wf-stage">
-          {/* Context recap */}
-          {ctx.some((f) => f.value.trim()) && (
-            <div className="ctx-recap">
-              <div className="ctx-recap-head">
-                <span>🧭 Business context</span>
-                <button className="fs-reopen" onClick={() => setOpenKey(CONTEXT_KEY)} type="button">edit</button>
-              </div>
-              <div className="ctx-chips">
-                {ctx.filter((f) => f.value.trim()).map((f) => (
-                  <span key={f.id} className="ctx-chip"><b>{shortLabel(f.question)}</b> {f.value}</span>
-                ))}
-              </div>
-            </div>
           )}
+        </Msg>
 
-          <div className="stage-lead">
-            <h2>Findings</h2>
-            <p className="muted">
-              Mark each finding as right or off-base, and add anything the agents should also
-              consider. Your validation shapes what gets generated.
-            </p>
-          </div>
-
-          {selected.map((a) => (
-            <div key={a.agentId} className={`finding-section ${a.status}`}>
-              <div className="fs-head">
-                <span className="fs-ico">{iconOf(a.agentId)}</span>
-                <span className="fs-title">
-                  <span className="fs-name">{nameOf(a.agentId)}</span>
-                  {a.summary && <span className="fs-summary">{a.summary}</span>}
-                </span>
-                <button className="fs-reopen" onClick={() => setOpenKey(a.agentId)} type="button" title="Review intake">intake</button>
-              </div>
-
-              {a.status === "error" && <div className="fs-err">Agent error: {a.error}</div>}
-
-              <div className="fs-findings">
-                {a.findings.map((f) => (
-                  <div key={f.id} className={`finding v-${f.verdict ?? "none"}`}>
-                    <div className="finding-body">
-                      <div className="finding-title">{f.title}</div>
-                      <div className="finding-detail">{f.detail}</div>
-                    </div>
-                    <div className="verdicts">
-                      <button className={`v-btn yes ${f.verdict === "correct" ? "on" : ""}`}
-                        onClick={() => setVerdict(a.agentId, f.id, f.verdict === "correct" ? null : "correct")} type="button">✓ Right</button>
-                      <button className={`v-btn no ${f.verdict === "incorrect" ? "on" : ""}`}
-                        onClick={() => setVerdict(a.agentId, f.id, f.verdict === "incorrect" ? null : "incorrect")} type="button">✕ Off</button>
-                    </div>
+        {/* 4 — findings, one message per agent */}
+        {hasRun && selected.map((a) => (
+          <Msg key={a.agentId} role="agent" icon={iconOf(a.agentId)} who={nameOf(a.agentId)}>
+            {a.summary && <p className="msg-lead">{a.summary}</p>}
+            {a.status === "error" && <div className="fs-err">Agent error: {a.error}</div>}
+            <div className="fs-findings">
+              {a.findings.map((f) => (
+                <div key={f.id} className={`finding v-${f.verdict ?? "none"}`}>
+                  <div className="finding-body">
+                    <div className="finding-title">{f.title}</div>
+                    <div className="finding-detail">{f.detail}</div>
                   </div>
-                ))}
-                {a.findings.length === 0 && <div className="fs-empty">No findings yet.</div>}
-              </div>
-
-              <AugmentNote value={a.userNotes ?? ""} onSave={(v) => patch({ agentId: a.agentId, userNotes: v })} />
+                  <div className="verdicts">
+                    <button className={`v-btn yes ${f.verdict === "correct" ? "on" : ""}`}
+                      onClick={() => setVerdict(a.agentId, f.id, f.verdict === "correct" ? null : "correct")} type="button">✓ Right</button>
+                    <button className={`v-btn no ${f.verdict === "incorrect" ? "on" : ""}`}
+                      onClick={() => setVerdict(a.agentId, f.id, f.verdict === "incorrect" ? null : "incorrect")} type="button">✕ Off</button>
+                  </div>
+                </div>
+              ))}
+              {a.findings.length === 0 && <div className="fs-empty">No findings yet.</div>}
             </div>
-          ))}
-
-          {hasFindings && (
-            <div className="generate-bar">
-              <div className="gb-lead">
-                <strong>Looks right?</strong> Turn the validated findings into a deliverable.
-                <span className="muted small block">A Feature PRD is focused; a Product PRD is the fuller document.</span>
-              </div>
-              <div className="gb-actions">
-                <button className="btn-gen" onClick={() => generate("prd", "feature")} disabled={genBusy !== null} type="button">
-                  {genBusy === "prd-feature" ? "Generating…" : "Feature PRD"}
-                </button>
-                <button className="btn-gen" onClick={() => generate("prd", "product")} disabled={genBusy !== null} type="button">
-                  {genBusy === "prd-product" ? "Generating…" : "Product PRD"}
-                </button>
-                <button className="btn-gen alt" onClick={() => generate("backlog")} disabled={genBusy !== null} type="button">
-                  {genBusy === "backlog" ? "Generating…" : "Backlog"}
-                </button>
-              </div>
+            <div className="msg-tools">
+              <button className="fs-reopen" onClick={() => setOpenKey(a.agentId)} type="button">edit intake</button>
             </div>
-          )}
-        </section>
-      )}
+            <AugmentNote value={a.userNotes ?? ""} onSave={(v) => patch({ agentId: a.agentId, userNotes: v })} />
+          </Msg>
+        ))}
 
-      {/* --------------------------- OUTPUTS ---------------------------- */}
-      {wf.outputs.length > 0 && (
-        <section className="wf-stage outputs">
-          <div className="stage-lead"><h2>Generated</h2></div>
-          {wf.outputs.map((o) => (
-            <article key={o.id} className="doc">
+        {/* interleave: notes and outputs in creation order isn't tracked separately,
+            so show notes, then outputs (newest last for a chat feel). */}
+        {notes.map((n, i) => (
+          <Msg key={`note-${i}`} role="user"><p className="msg-input">{n}</p></Msg>
+        ))}
+
+        {[...wf.outputs].reverse().map((o) => (
+          <Msg key={o.id} role="agent" icon={kindIcon(o.kind)} who="Generated">
+            <article className="doc">
               <div className="doc-head">
                 <span className={`doc-kind ${o.kind}`}>{docTag(o)}</span>
                 <h3 className="doc-title">{o.title}</h3>
@@ -334,18 +266,64 @@ export default function WorkflowPage() {
                 <div key={i} className="doc-section">
                   <h4>{s.heading}</h4>
                   {s.body && <p>{s.body}</p>}
-                  {s.bullets && s.bullets.length > 0 && (
-                    <ul>{s.bullets.map((b, j) => <li key={j}>{b}</li>)}</ul>
-                  )}
+                  {s.bullets && s.bullets.length > 0 && <ul>{s.bullets.map((b, j) => <li key={j}>{b}</li>)}</ul>}
                 </div>
               ))}
-              <div className="doc-foot muted small">
-                Download opens the Markdown so you can add detail in your editor of choice.
-              </div>
             </article>
-          ))}
-        </section>
-      )}
+          </Msg>
+        ))}
+
+        <div ref={endRef} />
+      </div>
+
+      {/* --------------------------- Composer dock --------------------------- */}
+      <div className="dock">
+        <div className="dock-inner">
+          {hasRun ? (
+            <div className="dock-actions">
+              <span className="dock-label">Generate:</span>
+              <button className="chip-gen analysis" onClick={() => generate("analysis")} disabled={genBusy !== null} type="button">
+                {genBusy === "analysis" ? "…" : "Analysis"}
+              </button>
+              <button className="chip-gen" onClick={() => generate("prd", "feature")} disabled={genBusy !== null} type="button">
+                {genBusy === "prd-feature" ? "…" : "Feature PRD"}
+              </button>
+              <button className="chip-gen" onClick={() => generate("prd", "product")} disabled={genBusy !== null} type="button">
+                {genBusy === "prd-product" ? "…" : "Product PRD"}
+              </button>
+              <button className="chip-gen" onClick={() => generate("backlog")} disabled={genBusy !== null} type="button">
+                {genBusy === "backlog" ? "…" : "Backlog"}
+              </button>
+              <button className="chip-gen ghost" onClick={runAll} disabled={running} type="button" title="Re-run agents with updated intake">
+                {running ? "…" : "↻ Re-run"}
+              </button>
+            </div>
+          ) : (
+            <div className="dock-actions">
+              <span className="dock-label">Fill intake above, then</span>
+              <button className="chip-gen analysis" onClick={runAll} disabled={running} type="button">
+                {running ? "Running…" : `Run ${selected.length} agents →`}
+              </button>
+            </div>
+          )}
+          <div className="dock-input">
+            <textarea
+              className="dock-textarea"
+              placeholder={hasRun ? "Add context or a correction, then generate again…" : "Add anything the agents should know…"}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") sendNote(); }}
+              rows={1}
+            />
+            <button className="dock-send" onClick={sendNote} disabled={sending || !draft.trim()} type="button" title="Add to the discovery">
+              {sending ? "…" : "Add"}
+            </button>
+          </div>
+          <p className="dock-hint">
+            Added context feeds the next thing you generate. Generate as many deliverables as you like — they stack above.
+          </p>
+        </div>
+      </div>
 
       {/* --------------------- Intake drawer (side window) --------------- */}
       {openKey && (
@@ -353,9 +331,7 @@ export default function WorkflowPage() {
           itemKey={openKey}
           fields={openFields}
           onClose={() => setOpenKey(null)}
-          onChange={openKey === CONTEXT_KEY
-            ? (fid, v) => editContext(fid, v)
-            : (fid, v) => editAgentField(openKey, fid, v)}
+          onChange={openKey === CONTEXT_KEY ? (fid, v) => editContext(fid, v) : (fid, v) => editAgentField(openKey, fid, v)}
           onCommit={(fid, v) => commit(openKey, fid, v)}
         />
       )}
@@ -363,10 +339,28 @@ export default function WorkflowPage() {
   );
 }
 
+/* ------------------------------ message ------------------------------- */
+function Msg({ role, icon, who, children }: { role: "user" | "agent"; icon?: string; who?: string; children: React.ReactNode }) {
+  if (role === "user") {
+    return (
+      <div className="msg user">
+        <div className="msg-bubble user">{children}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="msg agent">
+      <div className="msg-avatar">{icon ?? "✦"}</div>
+      <div className="msg-bubble agent">
+        {who && <div className="msg-who">{who}</div>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------ intake row ------------------------------ */
-function IntakeRow({
-  itemKey, fields, onOpen, foundation,
-}: { itemKey: string; fields: IntakeField[]; onOpen: () => void; foundation?: boolean }) {
+function IntakeRow({ itemKey, fields, onOpen, foundation }: { itemKey: string; fields: IntakeField[]; onOpen: () => void; foundation?: boolean }) {
   const needed = fields.filter((f) => f.required && !f.value.trim());
   const captured = fields.filter((f) => f.value.trim());
   return (
@@ -376,9 +370,7 @@ function IntakeRow({
         <span className="ir-name">{nameOf(itemKey)}</span>
         <span className="ir-stats">
           <span className="pill captured">{captured.length} captured</span>
-          {needed.length > 0
-            ? <span className="pill needed">{needed.length} still needed</span>
-            : <span className="pill ok">ready</span>}
+          {needed.length > 0 ? <span className="pill needed">{needed.length} still needed</span> : <span className="pill ok">ready</span>}
         </span>
       </span>
       <span className="ir-go">Review →</span>
@@ -391,13 +383,10 @@ function AugmentNote({ value, onSave }: { value: string; onSave: (v: string) => 
   const [v, setV] = useState(value);
   const [open, setOpen] = useState(Boolean(value));
   useEffect(() => { setV(value); }, [value]);
-  if (!open) {
-    return <button className="add-note" onClick={() => setOpen(true)} type="button">＋ Add things to consider</button>;
-  }
+  if (!open) return <button className="add-note" onClick={() => setOpen(true)} type="button">＋ Add things to consider</button>;
   return (
     <div className="augment">
-      <textarea className="augment-input"
-        placeholder="Also consider… (context, constraints, corrections the agents missed)"
+      <textarea className="augment-input" placeholder="Also consider… (context, constraints, corrections the agent missed)"
         value={v} onChange={(e) => setV(e.target.value)} onBlur={() => onSave(v)} rows={2} />
     </div>
   );
@@ -407,9 +396,7 @@ function AugmentNote({ value, onSave }: { value: string; onSave: (v: string) => 
 function IntakeDrawer({
   itemKey, fields, onClose, onChange, onCommit,
 }: {
-  itemKey: string;
-  fields: IntakeField[];
-  onClose: () => void;
+  itemKey: string; fields: IntakeField[]; onClose: () => void;
   onChange: (fieldId: string, value: string) => void;
   onCommit: (fieldId: string, value: string) => void;
 }) {
@@ -430,8 +417,6 @@ function IntakeDrawer({
           </span>
           <button className="dh-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
-
-        {/* Explainer + progress */}
         <div className="drawer-intro">
           <p className="di-why">{whyOf(itemKey)}</p>
           <div className="di-progress">
@@ -443,38 +428,25 @@ function IntakeDrawer({
             <span className="lg needed">Needed</span> is what to add. Changes save automatically.
           </p>
         </div>
-
         <div className="drawer-body">
           <div className="drawer-group">
-            <div className="dg-head captured">
-              <span className="dot" /> Captured from your input
-              <span className="dg-count">{captured.length}</span>
-            </div>
+            <div className="dg-head captured"><span className="dot" /> Captured from your input<span className="dg-count">{captured.length}</span></div>
             {captured.length === 0 && <p className="dg-empty">Nothing captured yet — fill the fields below.</p>}
             {captured.map((f) => <Field key={f.id} field={f} onChange={onChange} onCommit={onCommit} />)}
           </div>
-
           <div className="drawer-group">
-            <div className="dg-head needed">
-              <span className="dot" /> Still needed
-              <span className="dg-count">{needed.length}</span>
-            </div>
+            <div className="dg-head needed"><span className="dot" /> Still needed<span className="dg-count">{needed.length}</span></div>
             {needed.length === 0 && <p className="dg-empty">All set — nothing else needed.</p>}
             {needed.map((f) => <Field key={f.id} field={f} onChange={onChange} onCommit={onCommit} />)}
           </div>
         </div>
-
-        <div className="drawer-foot">
-          <button className="btn-go sm" onClick={onClose} type="button">Done</button>
-        </div>
+        <div className="drawer-foot"><button className="btn-go sm" onClick={onClose} type="button">Done</button></div>
       </aside>
     </>
   );
 }
 
-function Field({
-  field, onChange, onCommit,
-}: {
+function Field({ field, onChange, onCommit }: {
   field: IntakeField;
   onChange: (fieldId: string, value: string) => void;
   onCommit: (fieldId: string, value: string) => void;
@@ -487,28 +459,20 @@ function Field({
         {field.captured && <span className="auto-tag">auto</span>}
       </span>
       <textarea className="ifield-input" value={field.value} placeholder="Type your answer…"
-        onChange={(e) => onChange(field.id, e.target.value)}
-        onBlur={(e) => onCommit(field.id, e.target.value)} rows={2} />
+        onChange={(e) => onChange(field.id, e.target.value)} onBlur={(e) => onCommit(field.id, e.target.value)} rows={2} />
     </label>
   );
 }
 
 /* ------------------------------- helpers -------------------------------- */
-function shortLabel(question: string): string {
-  const q = question.toLowerCase();
-  if (q.includes("industry")) return "Industry";
-  if (q.includes("process")) return "Process";
-  if (q.includes("objective")) return "Objective";
-  if (q.includes("coming from")) return "Source";
-  if (q.includes("stakeholder")) return "Stakeholders";
-  return question.replace(/\?.*$/, "").slice(0, 18);
+function kindIcon(kind: string): string {
+  return kind === "analysis" ? "🔎" : kind === "backlog" ? "🗂️" : "📄";
 }
-
 function docTag(o: GeneratedOutput): string {
+  if (o.kind === "analysis") return "Analysis";
   if (o.kind === "backlog") return "Backlog";
   return o.variant === "product" ? "Product PRD" : "Feature PRD";
 }
-
 function downloadDoc(o: GeneratedOutput, w: Workflow) {
   const lines: string[] = [`# ${o.title}`, ""];
   lines.push(`> Source ${w.inputType}: ${w.input.replace(/\s+/g, " ").trim()}`, "");
@@ -518,14 +482,11 @@ function downloadDoc(o: GeneratedOutput, w: Workflow) {
     if (s.bullets) { for (const b of s.bullets) lines.push(`- ${b}`); lines.push(""); }
   }
   lines.push("", "---", "_Generated with Discovery Studio — edit and expand as needed._");
-  const md = lines.join("\n");
-  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = `${o.title.replace(/\s+/g, "-").toLowerCase()}.md`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

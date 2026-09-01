@@ -26,6 +26,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     inputType?: InputType;
     stage?: Stage;
     context?: { id: string; value: string }[];
+    note?: string;
     agentId?: string;
     fields?: { id: string; value: string }[];
     findingId?: string;
@@ -40,6 +41,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (b.inputType) w.inputType = b.inputType;
   if (b.stage) w.stage = b.stage;
+
+  // A note typed into the chat composer (workflow-level, feeds generation).
+  if (typeof b.note === "string" && b.note.trim()) {
+    w.notes = [...(w.notes ?? []), b.note.trim()];
+  }
 
   // Business-context foundation fields (workflow-level).
   if (Array.isArray(b.context)) {

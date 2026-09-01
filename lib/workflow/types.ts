@@ -54,9 +54,11 @@ export interface AgentState {
 /** PRD flavor: a single feature vs. a whole product. */
 export type PrdVariant = "feature" | "product";
 
+export type OutputKind = "analysis" | "prd" | "backlog";
+
 export interface GeneratedOutput {
   id: string;
-  kind: "prd" | "backlog";
+  kind: OutputKind;
   /** For PRDs: feature-level or full-product. */
   variant?: PrdVariant;
   title: string;
@@ -78,6 +80,8 @@ export interface Workflow {
   context: IntakeField[];
   stage: Stage;
   agents: AgentState[];
+  /** Free-text context/notes the user adds in the chat composer over time. */
+  notes?: string[];
   outputs: GeneratedOutput[];
   mode: "live" | "demo";
   createdAt: number;
