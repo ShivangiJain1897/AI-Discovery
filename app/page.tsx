@@ -1,200 +1,196 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { AGENT_EMOJI, TopBar } from "./components/shared";
-import type { AgentId, DiscoveryRun } from "@/lib/agents/types";
 
-interface AgentMeta {
-  id: AgentId;
-  name: string;
-  tagline: string;
-  description: string;
-  order: number;
-}
-interface Stage {
+interface AgentCard {
   id: string;
-  order: number;
   name: string;
-  summary: string;
-}
-interface AgentsResponse {
-  agents: AgentMeta[];
-  valueChain: { name: string; description: string; stages: Stage[] };
-  mode: "live" | "demo";
+  icon: string;
+  blurb: string;
+  questions: { id: string; question: string; required: boolean }[];
 }
 
-const EXAMPLES = [
-  "Medicare Advantage onboarding & retention",
-  "Reduce avoidable contact-center calls",
-  "Improve CMS Star Ratings member experience",
+const TYPES: { id: string; label: string; hint: string }[] = [
+  { id: "auto", label: "Auto-detect", hint: "Let the orchestrator classify it" },
+  { id: "problem", label: "Problem", hint: "A pain or gap to solve" },
+  { id: "idea", label: "Idea", hint: "A possible thing to build" },
+  { id: "solution", label: "Solution", hint: "A proposed approach" },
+  { id: "requirement", label: "Requirement", hint: "A user story / spec" },
+  { id: "transcript", label: "Transcript", hint: "A call / interview to mine" },
 ];
 
-const APPS = ["Aetna Health", "UnitedHealthcare", "Cigna", "MyHumana"];
+const EXAMPLES = [
+  "Members can't tell what a visit will cost before they go, so they call support or skip care.",
+  "Idea: an AI concierge in the member app that answers benefits questions and books care end-to-end.",
+  "Transcript: PM: Walk me through the last claim you filed. Member: I logged in, it said pending for two weeks…",
+];
 
-export default function Dashboard() {
+export default function Home() {
   const router = useRouter();
-  const [meta, setMeta] = useState<AgentsResponse | null>(null);
-  const [runs, setRuns] = useState<DiscoveryRun[]>([]);
-  const [focus, setFocus] = useState("");
-  const [appTarget, setAppTarget] = useState("");
-  const [starting, setStarting] = useState(false);
+  const [input, setInput] = useState("");
+  const [inputType, setInputType] = useState("auto");
+  const [agents, setAgents] = useState<AgentCard[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<"live" | "demo">("demo");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    fetch("/api/agents").then((r) => r.json()).then(setMeta).catch(() => {});
-    fetch("/api/discovery").then((r) => r.json()).then((d) => setRuns(d.runs ?? [])).catch(() => {});
+    fetch("/api/agents")
+      .then((r) => r.json())
+      .then((d) => {
+        setAgents(d.agents || []);
+        setMode(d.mode || "demo");
+        // Default: the three always-on lenses; user can add the rest.
+        setSelected(new Set(["user_research", "market", "business_priority"]));
+      })
+      .catch(() => {});
   }, []);
 
-  async function startRun() {
-    setStarting(true);
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  async function start() {
+    const text = input.trim();
+    if (!text) {
+      setError("Type a problem, idea, or paste a transcript first.");
+      taRef.current?.focus();
+      return;
+    }
+    if (selected.size === 0) {
+      setError("Pick at least one agent to run.");
+      return;
+    }
+    setBusy(true);
+    setError("");
     try {
-      const res = await fetch("/api/discovery", {
+      const agentIds = Array.from(selected);
+      // 1) create the workflow
+      const cr = await fetch("/api/workflow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ focus, appTarget }),
+        body: JSON.stringify({ input: text, inputType, agentIds }),
       });
-      const data = await res.json();
-      if (data?.run?.id) router.push(`/discovery/${data.run.id}`);
-    } finally {
-      setStarting(false);
+      const cj = await cr.json();
+      if (!cr.ok) throw new Error(cj.error || "Could not start discovery.");
+      const id = cj.workflow.id;
+      // 2) select agents → auto-extract each one's intake (captured vs needed)
+      await fetch(`/api/workflow/${id}/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentIds }),
+      });
+      router.push(`/w/${id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setBusy(false);
     }
   }
 
   return (
-    <>
-      <TopBar mode={meta?.mode} />
-      <main className="container">
-        <section className="hero">
-          <div className="eyebrow">Discovery, reimagined</div>
-          <h1>A team of AI agents that discovers where to improve your member experience.</h1>
-          <p className="lede">
-            Point four specialized agents at your payer&apos;s member value chain. They build domain context,
-            detect live production defects, scan the market, and analyze operational processes — then
-            synthesize everything into a ranked list of opportunities you can act on.
+    <div className="entry">
+      <div className="entry-inner">
+        <div className="entry-hero">
+          <div className="eyebrow">
+            <span className="logo-mark">◈</span> Discovery Studio
+          </div>
+          <h1 className="entry-title">
+            Start with anything.<br />Let the agents do discovery.
+          </h1>
+          <p className="entry-sub">
+            Drop a problem, an idea, a requirement, or a raw transcript. A team of AI agents
+            figures out what they need to know, surfaces findings you validate, and turns it
+            into a PRD or backlog you own.
           </p>
-        </section>
+        </div>
 
-        {/* Run bar */}
-        <section className="section">
-          <div className="card">
-            <div className="section-head" style={{ marginBottom: 12 }}>
-              <h2>Run a discovery</h2>
-              <span className="muted">Domain grounding → parallel agents → synthesized opportunities</span>
-            </div>
-            <div className="runbar">
-              <input
-                className="input"
-                placeholder="Optional focus, e.g. 'Medicare Advantage onboarding'"
-                value={focus}
-                onChange={(e) => setFocus(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !starting && startRun()}
-              />
-              <button className="btn primary" onClick={startRun} disabled={starting}>
-                {starting ? <span className="spinner" /> : "▶"} {starting ? "Running agents…" : "Run discovery"}
+        <div className="composer-card">
+          <textarea
+            ref={taRef}
+            className="composer-input"
+            placeholder="e.g. Members can't tell what a visit will cost before they go…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") start();
+            }}
+            rows={5}
+          />
+
+          <div className="type-row">
+            <span className="type-label">This is a</span>
+            {TYPES.map((t) => (
+              <button
+                key={t.id}
+                className={`type-chip ${inputType === t.id ? "on" : ""}`}
+                onClick={() => setInputType(t.id)}
+                title={t.hint}
+                type="button"
+              >
+                {t.label}
               </button>
-            </div>
-            <div className="runbar" style={{ marginTop: 10 }}>
-              <input
-                className="input"
-                placeholder="Ground in real reviews — member app name or App Store URL, e.g. 'Aetna Health'"
-                value={appTarget}
-                onChange={(e) => setAppTarget(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !starting && startRun()}
-              />
-            </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-faint)" }}>
-              Add an app to ground the 🐞 Defect agent in <strong>real App Store reviews</strong> with clickable
-              sources. Leave blank to see generated examples.
-            </div>
-            <div className="chips">
-              {APPS.map((a) => (
-                <span key={a} className="chip" onClick={() => setAppTarget(a)}>
-                  🐞 {a}
-                </span>
-              ))}
-              {EXAMPLES.map((ex) => (
-                <span key={ex} className="chip" onClick={() => setFocus(ex)}>
-                  {ex}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Agents */}
-        <section className="section">
-          <div className="section-head">
-            <h2>The discovery team</h2>
-            <span className="muted">{meta?.agents.length ?? 4} agents working the member value chain</span>
-          </div>
-          <div className="grid cols-4">
-            {(meta?.agents ?? []).map((a) => (
-              <div key={a.id} className="card hover agent-card">
-                <div className={`agent-icon ${a.id}`}>{AGENT_EMOJI[a.id]}</div>
-                <h3>{a.name}</h3>
-                <div className="tagline">{a.tagline}</div>
-                <p>{a.description}</p>
-              </div>
             ))}
           </div>
-        </section>
 
-        {/* Value chain */}
-        <section className="section">
-          <div className="section-head">
-            <h2>{meta?.valueChain.name ?? "Member Value Chain"}</h2>
-            <span className="muted">Every signal and opportunity is anchored to a stage</span>
+          <div className="agent-pick">
+            <div className="agent-pick-head">
+              <span>Agents on the case</span>
+              <span className="muted">{selected.size} selected</span>
+            </div>
+            <div className="agent-grid">
+              {agents.map((a) => {
+                const on = selected.has(a.id);
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className={`agent-card ${on ? "on" : ""}`}
+                    onClick={() => toggle(a.id)}
+                  >
+                    <span className="agent-ico">{a.icon}</span>
+                    <span className="agent-meta">
+                      <span className="agent-name">{a.name}</span>
+                      <span className="agent-blurb">{a.blurb}</span>
+                    </span>
+                    <span className={`agent-check ${on ? "on" : ""}`}>{on ? "✓" : "＋"}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="chain">
-            {(meta?.valueChain.stages ?? []).map((s) => (
-              <div key={s.id} className="chain-stage">
-                <div className="num">{String(s.order).padStart(2, "0")}</div>
-                <h4>{s.name}</h4>
-                <p>{s.summary}</p>
-              </div>
-            ))}
-          </div>
-        </section>
 
-        {/* Recent runs */}
-        <section className="section">
-          <div className="section-head">
-            <h2>Recent discoveries</h2>
-            <span className="muted">{runs.length} run{runs.length === 1 ? "" : "s"}</span>
-          </div>
-          {runs.length === 0 ? (
-            <div className="empty">No discoveries yet — run one above to see the agents work.</div>
-          ) : (
-            runs.map((r) => (
-              <Link key={r.id} href={`/discovery/${r.id}`}>
-                <div className="run-row">
-                  <span className={`pill ${r.status}`}>{r.status}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>
-                      {r.focus || "General member experience improvement"}
-                    </div>
-                    <div className="rid">{r.id}</div>
-                  </div>
-                  <div style={{ textAlign: "right", color: "var(--text-faint)", fontSize: 12 }}>
-                    <div>
-                      {r.opportunities?.length ?? 0} opportunities · {r.signals?.length ?? 0} signals
-                    </div>
-                    <div>{new Date(r.createdAt).toLocaleString()}</div>
-                  </div>
-                </div>
-              </Link>
-            ))
-          )}
-        </section>
+          {error && <div className="composer-error">{error}</div>}
 
-        <footer className="footer">
-          <div>
-            AI Discovery pilot · {meta?.mode === "live" ? "Live agents powered by Claude" : "Demo mode with seed data"} ·
-            Built to be extended — see README for the roadmap to production.
+          <div className="composer-actions">
+            <span className="mode-note">
+              <span className={`badge ${mode}`}>
+                <span className="dot" />
+                {mode === "live" ? "Live · Claude" : "Demo mode"}
+              </span>
+            </span>
+            <button className="btn-go" onClick={start} disabled={busy} type="button">
+              {busy ? "Starting…" : "Run discovery →"}
+            </button>
           </div>
-        </footer>
-      </main>
-    </>
+        </div>
+
+        <div className="entry-examples">
+          <span className="ex-label">Try</span>
+          {EXAMPLES.map((ex, i) => (
+            <button key={i} className="ex-chip" onClick={() => setInput(ex)} type="button">
+              {ex.length > 64 ? ex.slice(0, 61) + "…" : ex}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

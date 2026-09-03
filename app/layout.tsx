@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Shell from "./components/Shell";
 
 export const metadata: Metadata = {
-  title: "AI Discovery — Payer Member Value Chain",
+  title: "Discovery Studio",
   description:
-    "Reimagining product discovery for payer organizations with a team of specialized AI agents: domain, defect detection, market analysis, and process analysis.",
+    "Turn a problem, idea, or transcript into product discovery: a team of AI agents (user research, process, defects, market, regulatory, business priority) intake what they need, surface findings you validate, and generate a PRD or backlog you own.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Shell>{children}</Shell>
+      </body>
     </html>
   );
 }
