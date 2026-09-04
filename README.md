@@ -39,6 +39,9 @@ an optional shared password, ~15 minutes, no code changes.
 
 > New here? [`SETUP.md`](./SETUP.md) has step-by-step run instructions and troubleshooting.
 
+> Want to shape the agents — their questions, personas, and outputs? See
+> [`docs/TUNING-AGENTS.md`](./docs/TUNING-AGENTS.md).
+
 ---
 
 ## Quick start
