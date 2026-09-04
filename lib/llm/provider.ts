@@ -28,6 +28,12 @@ export interface LlmProvider {
   readonly mode: "live" | "demo";
   readonly label: string;
   generateJson<T = unknown>(params: GenerateJsonParams): Promise<T>;
+  /**
+   * Optional live web research. Returns a plain-text digest of findings with
+   * sources, or "" if unavailable. Only the live provider implements it;
+   * callers must treat it as best-effort (wrap in try/catch).
+   */
+  research?(query: string): Promise<string>;
 }
 
 let cached: LlmProvider | null = null;

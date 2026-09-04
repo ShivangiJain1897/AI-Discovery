@@ -32,4 +32,34 @@ export class AnthropicProvider implements LlmProvider {
       .join("\n");
     return extractJson<T>(text);
   }
+
+  /**
+   * Live web research via Claude's server-side web_search tool. Returns a
+   * plain-text digest (with whatever sources the model cites), or "" on any
+   * failure so callers can degrade gracefully.
+   */
+  async research(query: string): Promise<string> {
+    try {
+      // The web_search server tool isn't in older SDK types; pass it through.
+      const req = {
+        model: this.model,
+        max_tokens: 1500,
+        system:
+          "You are a research assistant. Use web search to find current, factual information. " +
+          "Reply with a concise digest of the key findings as short bullet points, each ending with its source (site or URL). Do not fabricate.",
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+        messages: [{ role: "user", content: query }],
+      } as unknown as Anthropic.MessageCreateParamsNonStreaming;
+
+      const msg = await this.client.messages.create(req);
+      const text = msg.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n")
+        .trim();
+      return text;
+    } catch {
+      return "";
+    }
+  }
 }

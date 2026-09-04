@@ -225,10 +225,6 @@ export default function WorkflowPage() {
               ))}
               {a.findings.length === 0 && <div className="fs-empty">No findings yet.</div>}
             </div>
-            <div className="msg-tools">
-              <button className="fs-reopen" onClick={() => setOpenKey(a.agentId)} type="button">edit intake</button>
-            </div>
-            <AugmentNote value={a.userNotes ?? ""} onSave={(v) => patch({ agentId: a.agentId, userNotes: v })} />
           </Msg>
         ))}
 
@@ -359,20 +355,6 @@ function IntakeRow({ itemKey, fields, onOpen, foundation }: { itemKey: string; f
       </span>
       <span className="ir-go">Review →</span>
     </button>
-  );
-}
-
-/* ---------------------------- augment note ------------------------------ */
-function AugmentNote({ value, onSave }: { value: string; onSave: (v: string) => void }) {
-  const [v, setV] = useState(value);
-  const [open, setOpen] = useState(Boolean(value));
-  useEffect(() => { setV(value); }, [value]);
-  if (!open) return <button className="add-note" onClick={() => setOpen(true)} type="button">＋ Add things to consider</button>;
-  return (
-    <div className="augment">
-      <textarea className="augment-input" placeholder="Also consider… (context, constraints, corrections the agent missed)"
-        value={v} onChange={(e) => setV(e.target.value)} onBlur={() => onSave(v)} rows={2} />
-    </div>
   );
 }
 

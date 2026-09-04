@@ -1,110 +1,24 @@
 /**
- * The agent team. Each agent declares the INTAKE it needs, can EXTRACT what it
- * can from the input, and RUNS to produce findings.
+ * The agent team — engine.
+ *
+ * Each agent's editable definition (name, icon, blurb, system prompt, intake
+ * questions, research flag) lives in its own file under `./prompts`. THIS file
+ * is the machinery: extracting intake, optionally doing live web research, and
+ * running each agent to produce findings.
  *
  * Live mode uses Claude; demo mode uses deterministic generators so the whole
  * flow works with no API key. Agents branch on provider.mode.
+ *
+ * ► To tune an agent's prompt or questions, edit its file in `./prompts`.
  */
 import { getProvider } from "../llm/provider";
+import { AGENT_PROMPTS, type AgentPrompt } from "./prompts";
 import type { AgentId, Finding, InputType, IntakeField } from "./types";
 
-export interface AgentMeta {
-  id: AgentId;
-  name: string;
-  icon: string;
-  blurb: string;
-  /** The system persona used in live mode. */
-  system: string;
-  /** The questions this agent needs answered (its intake form). */
-  questions: { id: string; question: string; required: boolean }[];
-}
+export type AgentMeta = AgentPrompt;
 
-export const AGENTS: AgentMeta[] = [
-  {
-    id: "user_research",
-    name: "User Research",
-    icon: "🧑‍🔬",
-    blurb: "Understands the user — who they are, their jobs, needs, and pains.",
-    system:
-      "You are a senior user researcher. You deeply understand users: their segments, jobs-to-be-done, needs, pains, and behaviors. You are evidence-seeking and avoid unfounded claims.",
-    questions: [
-      { id: "users", question: "Who are the primary users / personas?", required: true },
-      { id: "context", question: "What's the domain / context they operate in?", required: true },
-      { id: "job", question: "What outcome or job are they trying to accomplish?", required: true },
-      { id: "known_pains", question: "What do we already know about their pain points?", required: false },
-    ],
-  },
-  {
-    id: "process_mining",
-    name: "Process Mining",
-    icon: "⚙️",
-    blurb: "Maps the current process — handoffs, manual steps, and bottlenecks.",
-    system:
-      "You are a process analyst. You map end-to-end processes, find manual handoffs, rework, and bottlenecks, and identify automation opportunities.",
-    questions: [
-      { id: "process", question: "What is the end-to-end process involved?", required: true },
-      { id: "actors", question: "Which teams / systems participate?", required: true },
-      { id: "handoffs", question: "Where do handoffs or manual steps occur?", required: false },
-      { id: "bottlenecks", question: "Known bottlenecks or cycle-time issues?", required: false },
-    ],
-  },
-  {
-    id: "defect_detection",
-    name: "Defect Detection",
-    icon: "🐞",
-    blurb: "Surfaces current defects and reliability issues in the experience.",
-    system:
-      "You are a QA / reliability lead. You find production defects and UX failures and tie each to user impact and severity.",
-    questions: [
-      { id: "product", question: "Which application / product / experience is involved?", required: true },
-      { id: "channels", question: "What platforms / channels (web, mobile, IVR, chat)?", required: false },
-      { id: "known_defects", question: "Any known defect areas or recent incidents?", required: false },
-      { id: "signals", question: "What signals do we have (reviews, tickets, telemetry)?", required: false },
-    ],
-  },
-  {
-    id: "market",
-    name: "Market & Competitive",
-    icon: "📈",
-    blurb: "Analyzes the market, competitors, and shifting expectations.",
-    system:
-      "You are a market and competitive intelligence analyst. You frame the market, name competitors and benchmarks, and identify shifts in expectations.",
-    questions: [
-      { id: "market", question: "What market / category is this in?", required: true },
-      { id: "competitors", question: "Who are the key competitors or alternatives?", required: false },
-      { id: "trends", question: "What trends or expectations are shifting?", required: false },
-      { id: "positioning", question: "What is our current positioning?", required: false },
-    ],
-  },
-  {
-    id: "regulatory",
-    name: "Regulatory & Environment",
-    icon: "⚖️",
-    blurb: "Government regulations, PHI, and compliance in the operating environment.",
-    system:
-      "You are a regulatory and compliance analyst. You know the regulations relevant to a domain — HIPAA/CMS for US healthcare, GDPR/CCPA for consumer data, etc. — and the data/privacy constraints that apply.",
-    questions: [
-      { id: "domain", question: "What domain / jurisdiction (e.g. US healthcare)?", required: true },
-      { id: "data_types", question: "What data types are involved (PHI, PII, payment)?", required: true },
-      { id: "regs", question: "Which regulations may apply (HIPAA, CMS, GDPR…)?", required: false },
-      { id: "constraints", question: "Any compliance constraints already known?", required: false },
-    ],
-  },
-  {
-    id: "business_priority",
-    name: "Business Priority",
-    icon: "🎯",
-    blurb: "Assesses business goals, value, effort, and strategic priority.",
-    system:
-      "You are a product strategy / value analyst. You connect work to business goals, estimate value and effort honestly, and flag strategic priority.",
-    questions: [
-      { id: "goal", question: "What business goal or KPI does this support?", required: true },
-      { id: "value", question: "What's the expected value / impact?", required: false },
-      { id: "effort", question: "What's the rough effort / complexity?", required: false },
-      { id: "mandate", question: "Any strategic mandate or deadline?", required: false },
-    ],
-  },
-];
+/** The agent catalog, read from the per-agent prompt files. */
+export const AGENTS: AgentMeta[] = AGENT_PROMPTS;
 
 export function getAgent(id: AgentId): AgentMeta | undefined {
   return AGENTS.find((a) => a.id === id);
@@ -127,7 +41,7 @@ export async function extractIntake(
     try {
       const q = agent.questions.map((x) => `- ${x.id}: ${x.question}`).join("\n");
       const raw = await provider.generateJson<{ answers?: Record<string, string> }>({
-        system: agent.system + " You only fill fields the input actually supports; leave the rest blank.",
+        system: agent.system + "\n\nYou only fill fields the input actually supports; leave the rest blank.",
         prompt: `INPUT TYPE: ${inputType}\nINPUT:\n"""\n${input.slice(0, 6000)}\n"""\n\nFrom the input, fill any of these fields you can (leave blank if unknown). Return JSON { "answers": { "<id>": "<value>" } } using only these ids:\n${q}`,
         maxTokens: 800,
       });
@@ -149,7 +63,6 @@ function demoExtract(agentId: AgentId, input: string): Record<string, string> {
   const domain = detectDomain(input);
   const clip = input.trim().replace(/\s+/g, " ").slice(0, 140);
   const out: Record<string, string> = {};
-  // Fill "context / domain / market / jurisdiction"-type fields from detection.
   const agent = getAgent(agentId)!;
   for (const q of agent.questions) {
     if (/context|domain|market|jurisdiction/.test(q.id) || /context|domain|market|jurisdiction/.test(q.question.toLowerCase())) {
@@ -194,13 +107,37 @@ export async function runAgent(
 async function runLive(agent: AgentMeta, input: string, intake: IntakeField[]): Promise<{ summary: string; findings: Finding[] }> {
   const provider = await getProvider();
   const known = intake.filter((f) => f.value).map((f) => `- ${f.question} ${f.value}`).join("\n");
+
+  // Optional: live web research for agents that declare research: true.
+  let researchBlock = "";
+  if (agent.research && typeof provider.research === "function") {
+    try {
+      const found = await provider.research(researchQuery(agent, input, known));
+      if (found && found.trim()) researchBlock = `\n\nLIVE RESEARCH (web search — use and cite these; do not fabricate beyond them):\n${found.trim()}\n`;
+    } catch {
+      /* research is best-effort — proceed without it */
+    }
+  }
+
   const raw = await provider.generateJson<{ summary?: string; findings?: { title: string; detail: string }[] }>({
     system: agent.system,
-    prompt: `INPUT:\n"""\n${input.slice(0, 6000)}\n"""\n\nWhat we know (intake):\n${known || "(little provided)"}\n\nProduce your findings. Return JSON: { "summary": string, "findings": [ { "title": string, "detail": string } ] } with 3-5 specific findings.`,
-    maxTokens: 1800,
+    prompt: `INPUT:\n"""\n${input.slice(0, 6000)}\n"""\n\nWhat we know (intake):\n${known || "(little provided)"}\n${researchBlock}\nProduce your findings. Return JSON: { "summary": string, "findings": [ { "title": string, "detail": string } ] } with 3-6 specific, actionable findings. Where a flow or sequence matters, write the steps out in the detail.`,
+    maxTokens: 2200,
   });
   const findings = (raw?.findings ?? []).filter((f) => f && f.title).map((f, i) => finding(f.title, f.detail, i));
   return { summary: String(raw?.summary ?? ""), findings };
+}
+
+/** Build the web-search query for a research agent. */
+function researchQuery(agent: AgentMeta, input: string, known: string): string {
+  const topic = input.trim().replace(/\s+/g, " ").slice(0, 400);
+  if (agent.id === "market") {
+    return `Research the market and direct competitors for this product idea, plus current trends and shifting expectations. Name specific companies/products and cite sources.\n\nIDEA: ${topic}\n${known}`;
+  }
+  if (agent.id === "regulatory") {
+    return `Research the regulations, data-privacy obligations, and compliance frameworks that apply to this in its industry and jurisdiction. Name the specific regulations and cite sources.\n\nCONTEXT: ${topic}\n${known}`;
+  }
+  return `Research relevant, current, factual context for: ${topic}\n${known}`;
 }
 
 function finding(title: string, detail: string, i: number): Finding {
@@ -237,7 +174,7 @@ function demoRun(agentId: AgentId, input: string, intake: IntakeField[]): { summ
       ],
     },
     market: {
-      summary: "Market and competitive framing for the idea.",
+      summary: "Market and competitive framing for the idea (demo mode — enable live mode for cited web research).",
       f: [
         ["AI concierge is becoming table stakes", "Leading products complete tasks end-to-end, resetting expectations from search to resolution."],
         ["Transparency expectations rising", d.health ? "Price/cost transparency pressure is increasing for members." : "Users expect clearer pricing and status."],
@@ -246,7 +183,7 @@ function demoRun(agentId: AgentId, input: string, intake: IntakeField[]): { summ
     },
     regulatory: d.health
       ? {
-          summary: "Regulatory & compliance considerations for a US healthcare/payer context.",
+          summary: "Regulatory & compliance considerations for a US healthcare/payer context (demo mode — enable live mode for cited research).",
           f: [
             ["HIPAA governs any PHI shown or sent", "Features surfacing member health data require privacy/security review and audit logging."],
             ["CMS rules on communications & timeliness", "Member communications, marketing, and appeals timelines are regulated; misses are compliance risk."],
@@ -254,7 +191,7 @@ function demoRun(agentId: AgentId, input: string, intake: IntakeField[]): { summ
           ],
         }
       : {
-          summary: "Regulatory & environment considerations.",
+          summary: "Regulatory & environment considerations (demo mode — enable live mode for cited research).",
           f: [
             ["Data privacy obligations", "Handling personal data invokes GDPR/CCPA-style consent, retention, and access controls."],
             ["Accessibility requirements", "The experience must meet accessibility standards."],
@@ -270,7 +207,6 @@ function demoRun(agentId: AgentId, input: string, intake: IntakeField[]): { summ
     },
   };
   const b = bank[agentId];
-  // Weave a hint of the user's intake context into the summary.
   const ctxNote = intake.find((f) => f.value)?.value;
   return {
     summary: b.summary + (ctxNote ? ` Context: ${ctxNote.slice(0, 120)}` : ""),
