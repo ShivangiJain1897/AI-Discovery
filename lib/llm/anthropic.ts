@@ -12,7 +12,14 @@ export class AnthropicProvider implements LlmProvider {
   private model: string;
 
   constructor() {
-    this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    // An org-level (unscoped) key needs the workspace id sent as a header.
+    // Set ANTHROPIC_WORKSPACE_ID to use such a key; a workspace-scoped key
+    // works without it.
+    const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
+    this.client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      ...(workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {}),
+    });
     this.model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
     this.label = `Claude (${this.model})`;
   }
