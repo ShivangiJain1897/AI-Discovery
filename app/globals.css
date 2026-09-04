@@ -2495,3 +2495,14 @@ table.tt tr.clickable:hover td {
   .dock-actions { gap: 6px; }
   .chip-gen { font-size: 12px; padding: 6px 11px; }
 }
+
+/* Evidence-strength badge on findings (spec §8) */
+.ev-badge {
+  display: inline-block; margin-left: 8px; vertical-align: middle;
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 999px;
+}
+.ev-badge.strong { background: rgba(18,184,134,0.16); color: var(--good); }
+.ev-badge.moderate { background: rgba(0,179,255,0.15); color: var(--brand-2); }
+.ev-badge.directional { background: rgba(245,159,0,0.18); color: #b8860b; }
+.ev-badge.hypothesis { background: rgba(120,130,190,0.16); color: var(--ink-faint); }

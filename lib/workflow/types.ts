@@ -32,10 +32,15 @@ export interface IntakeField {
 
 export type Verdict = "correct" | "incorrect" | null;
 
+/** How well-supported a finding is (spec §8). */
+export type EvidenceStrength = "Strong" | "Moderate" | "Directional" | "Hypothesis";
+
 export interface Finding {
   id: string;
   title: string;
   detail: string;
+  /** Evidence strength the agent assigned to this finding. */
+  strength?: EvidenceStrength;
   verdict: Verdict;
 }
 

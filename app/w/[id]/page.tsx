@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 /* ------------------------------- types ---------------------------------- */
 type Verdict = "correct" | "incorrect" | null;
 interface IntakeField { id: string; question: string; value: string; captured: boolean; required: boolean }
-interface Finding { id: string; title: string; detail: string; verdict: Verdict }
+interface Finding { id: string; title: string; detail: string; strength?: "Strong" | "Moderate" | "Directional" | "Hypothesis"; verdict: Verdict }
 interface AgentState {
   agentId: string; selected: boolean; intake: IntakeField[];
   status: "pending" | "intake" | "running" | "complete" | "error";
@@ -218,7 +218,10 @@ export default function WorkflowPage() {
               {a.findings.map((f) => (
                 <div key={f.id} className="finding">
                   <div className="finding-body">
-                    <div className="finding-title">{f.title}</div>
+                    <div className="finding-title">
+                      {f.title}
+                      {f.strength && <span className={`ev-badge ${f.strength.toLowerCase()}`} title="Evidence strength">{f.strength}</span>}
+                    </div>
                     <div className="finding-detail">{f.detail}</div>
                   </div>
                 </div>

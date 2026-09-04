@@ -13,7 +13,8 @@
  */
 import { getProvider } from "../llm/provider";
 import { AGENT_PROMPTS, type AgentPrompt } from "./prompts";
-import type { AgentId, Finding, InputType, IntakeField } from "./types";
+import { UNIVERSAL_SYSTEM } from "./prompts/_universal";
+import type { AgentId, EvidenceStrength, Finding, InputType, IntakeField } from "./types";
 
 export type AgentMeta = AgentPrompt;
 
@@ -119,13 +120,20 @@ async function runLive(agent: AgentMeta, input: string, intake: IntakeField[]): 
     }
   }
 
-  const raw = await provider.generateJson<{ summary?: string; findings?: { title: string; detail: string }[] }>({
-    system: agent.system,
-    prompt: `INPUT:\n"""\n${input.slice(0, 6000)}\n"""\n\nWhat we know (intake):\n${known || "(little provided)"}\n${researchBlock}\nProduce your findings. Return JSON: { "summary": string, "findings": [ { "title": string, "detail": string } ] } with 3-6 specific, actionable findings. Where a flow or sequence matters, write the steps out in the detail.`,
-    maxTokens: 2200,
+  const raw = await provider.generateJson<{ summary?: string; findings?: { title: string; detail: string; strength?: string }[] }>({
+    system: `${UNIVERSAL_SYSTEM}\n\n---\n\nYOUR SPECIALTY:\n${agent.system}`,
+    prompt: `INPUT:\n"""\n${input.slice(0, 6000)}\n"""\n\nWhat we know (intake):\n${known || "(little provided)"}\n${researchBlock}\nProduce your findings. Return JSON: { "summary": string, "findings": [ { "title": string, "detail": string, "strength": "Strong" | "Moderate" | "Directional" | "Hypothesis" } ] } with 3-6 specific, non-generic, actionable findings. Assign each finding's strength honestly per the rules. Where a flow or sequence matters, write the steps out in the detail.`,
+    maxTokens: 2400,
   });
-  const findings = (raw?.findings ?? []).filter((f) => f && f.title).map((f, i) => finding(f.title, f.detail, i));
+  const findings = (raw?.findings ?? []).filter((f) => f && f.title).map((f, i) => finding(f.title, f.detail, i, f.strength));
   return { summary: String(raw?.summary ?? ""), findings };
+}
+
+const STRENGTHS: EvidenceStrength[] = ["Strong", "Moderate", "Directional", "Hypothesis"];
+function normStrength(s: string | undefined): EvidenceStrength | undefined {
+  if (!s) return undefined;
+  const hit = STRENGTHS.find((x) => x.toLowerCase() === s.trim().toLowerCase());
+  return hit;
 }
 
 /** Build the web-search query for a research agent. */
@@ -140,8 +148,8 @@ function researchQuery(agent: AgentMeta, input: string, known: string): string {
   return `Research relevant, current, factual context for: ${topic}\n${known}`;
 }
 
-function finding(title: string, detail: string, i: number): Finding {
-  return { id: `f${i + 1}`, title: String(title).slice(0, 160), detail: String(detail ?? ""), verdict: null };
+function finding(title: string, detail: string, i: number, strength?: string): Finding {
+  return { id: `f${i + 1}`, title: String(title).slice(0, 160), detail: String(detail ?? ""), strength: normStrength(strength), verdict: null };
 }
 
 function demoRun(agentId: AgentId, input: string, intake: IntakeField[]): { summary: string; findings: Finding[] } {
@@ -210,6 +218,7 @@ function demoRun(agentId: AgentId, input: string, intake: IntakeField[]): { summ
   const ctxNote = intake.find((f) => f.value)?.value;
   return {
     summary: b.summary + (ctxNote ? ` Context: ${ctxNote.slice(0, 120)}` : ""),
-    findings: b.f.map(([t, det], i) => finding(t, det, i)),
+    // Demo findings are illustrative, not evidence-based — tag them as hypotheses.
+    findings: b.f.map(([t, det], i) => finding(t, det, i, "Hypothesis")),
   };
 }
