@@ -2506,3 +2506,22 @@ table.tt tr.clickable:hover td {
 .ev-badge.moderate { background: rgba(0,179,255,0.15); color: var(--brand-2); }
 .ev-badge.directional { background: rgba(245,159,0,0.18); color: #b8860b; }
 .ev-badge.hypothesis { background: rgba(120,130,190,0.16); color: var(--ink-faint); }
+
+/* Methodology tag + structured tables in generated docs */
+.method-tag {
+  display: inline-block; margin-left: 10px; vertical-align: middle;
+  font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0;
+  color: var(--brand); background: rgba(109,94,252,0.1);
+  padding: 2px 9px; border-radius: 999px;
+}
+.doc-table-wrap { overflow-x: auto; margin: 10px 0 4px; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.doc-table th, .doc-table td {
+  border: 1px solid var(--border); padding: 8px 11px; text-align: left; vertical-align: top;
+}
+.doc-table th {
+  background: rgba(109,94,252,0.07); font-weight: 700; color: var(--ink);
+  white-space: nowrap;
+}
+.doc-table td { color: var(--ink-soft); line-height: 1.45; }
+.doc-table tr:nth-child(even) td { background: rgba(120,130,190,0.03); }

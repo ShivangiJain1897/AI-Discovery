@@ -67,9 +67,21 @@ export interface GeneratedOutput {
   /** For PRDs: feature-level or full-product. */
   variant?: PrdVariant;
   title: string;
-  /** Sectioned document (PRD) or list (backlog) rendered as sections. */
-  sections: { heading: string; body?: string; bullets?: string[] }[];
+  /** Sectioned document rendered as prose, bullets, and/or a table. */
+  sections: OutputSection[];
   createdAt: number;
+}
+
+/** One section of a generated deliverable. Can carry a methodology label,
+ *  prose, bullets, and/or a structured table. */
+export interface OutputSection {
+  heading: string;
+  /** Methodology applied, e.g. "Jobs-to-be-Done", "Competitive matrix", "RICE". */
+  method?: string;
+  body?: string;
+  bullets?: string[];
+  /** A structured table (evidence table, competitive matrix, journey map, …). */
+  table?: { headers: string[]; rows: string[][] };
 }
 
 export interface Workflow {

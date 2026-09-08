@@ -14,7 +14,13 @@ import { getProvider } from "../llm/provider";
 import { getAgent } from "./agents";
 import type { GeneratedOutput, OutputKind, PrdVariant, Workflow } from "./types";
 
-interface Section { heading: string; body?: string; bullets?: string[] }
+interface Section {
+  heading: string;
+  method?: string;
+  body?: string;
+  bullets?: string[];
+  table?: { headers: string[]; rows: string[][] };
+}
 
 /** Collect the validated findings + notes as readable context. */
 function validatedContext(w: Workflow): { blocks: string[]; perAgent: { id: string; name: string; bullets: string[]; notes?: string }[] } {
@@ -107,36 +113,57 @@ export async function generate(
 
 async function live(w: Workflow, kind: OutputKind, variant: PrdVariant, context: string): Promise<Section[]> {
   const provider = await getProvider();
-  const shape = `Return JSON { "sections": [ { "heading": string, "body": string, "bullets": string[] } ] }.`;
+  const shape =
+    'Return JSON: { "sections": [ { "heading": string, "method"?: string, "body"?: string, "bullets"?: string[], "table"?: { "headers": string[], "rows": string[][] } } ] }. ' +
+    'Use "method" to name the methodology applied to that section. Use "table" whenever a matrix communicates better than prose — every row must be grounded in a finding; never fabricate rows to fill a table. Omit a section entirely if the evidence does not support it.';
+
   let ask: string;
   if (kind === "analysis") {
-    ask =
-      "Write a DISCOVERY ANALYSIS report. Start with an 'Executive Synthesis' section drawing out the 3-4 cross-cutting themes. Then one analysis section PER lens present in the findings (e.g. 'User Research Analysis', 'Competitive & Market Analysis', 'Process Analysis', 'Defect Analysis', 'Regulatory Analysis', 'Business Value Analysis') — each with a short body interpreting what the findings mean (not just restating them) plus supporting bullets. End with 'What Stands Out' and 'Recommended Next Steps'. Be analytical and specific.";
+    ask = `Write an ELABORATE, consulting-grade DISCOVERY ANALYSIS — the depth a senior strategy consultant would deliver, not a summary. Apply named methodologies and show your reasoning in STRUCTURED form (tables where a matrix is clearer than prose). Interpret, don't restate; label evidence strength/confidence; be specific and non-generic.
+
+Produce these sections in order, including only those the findings can support:
+1. "Executive Synthesis" — the 3-5 cross-cutting themes and the single most important takeaway (body + bullets).
+2. "Evidence Map" (method: "Evidence grading") — a table with headers ["Insight","From","Evidence strength","Why it matters"], one row per key finding.
+3. "Users & Jobs-to-be-Done" (method: "JTBD") — segments, jobs, needs, pains; body + bullets.
+4. "Competitive & Market" (method: "Competitive matrix") — a table ["Competitor / Alternative","Positioning","Strength","Weakness / gap"] where evidence supports it, plus interpretation.
+5. "Journey & Friction" (method: "Journey mapping") — a table ["Stage","User goal","Friction / pain","Opportunity"] where applicable.
+6. "Opportunity Portfolio" (method: "How-Might-We + opportunity scoring") — a table ["Opportunity","User value","Business value","Evidence","Confidence"].
+7. "Risks & Assumptions to Validate" — the assumptions that most threaten the conclusion.
+8. "Recommended Next Steps" — a sequenced, specific action list.`;
   } else if (kind === "backlog") {
-    ask = "Produce a prioritized product backlog: sections grouped as Now / Next / Later, each with bullet items derived from the findings. Add a short 'How this was prioritized' note.";
+    ask = `Produce a prioritized backlog using RICE-style reasoning. Include:
+1. "How this was prioritized" (method: "RICE") — short body explaining the scoring logic.
+2. "Prioritized Backlog" — a table ["Item","Reach/Impact","Effort","Priority (Now/Next/Later)","Evidence"], one row per opportunity, ordered by priority.
+3. "Now", "Next", "Later" — bullets listing the items in each bucket.`;
   } else if (variant === "product") {
-    ask =
-      "Write a DETAILED, whole-PRODUCT PRD. Include these sections in order: Executive Summary; Business Context & Objectives; Target Users & Personas; Problem Statement; Market & Competitive Landscape; Product Vision & Strategy; Scope (In / Out); Key Features & Epics; Functional Requirements; Regulatory, Privacy & Compliance; Success Metrics & KPIs; Rollout & GTM; Risks, Dependencies & Assumptions; Milestones; Open Questions. Be specific and ground every section in the business context and validated findings.";
+    ask = `Write a DETAILED, whole-PRODUCT PRD a team could build from. Include these sections in order (name the method where one applies), only where evidence supports: "Executive Summary"; "Business Context & Objectives"; "Target Users & Personas" (method: "Personas") with a table ["Persona","Job-to-be-done","Key needs","Pains"]; "Problem Statement"; "Market & Competitive Landscape" with a competitive matrix table; "Product Vision & Strategy"; "Scope — In / Out"; "Key Features & Epics" as a table ["Epic","User value","Priority"]; "Functional Requirements"; "Regulatory, Privacy & Compliance"; "Success Metrics & KPIs" as a table ["Metric","Baseline","Target","How measured"]; "Rollout & GTM"; "Risks, Dependencies & Assumptions"; "Milestones"; "Open Questions". Be specific and grounded.`;
   } else {
-    ask =
-      "Write a detailed, single-FEATURE PRD. Include these sections in order: Overview; Business Context; Problem & Users; Goals & Non-Goals; User Stories & Acceptance Criteria; Functional Requirements; Edge Cases & Error States; Regulatory & Compliance; Dependencies & Risks; Success Metrics; Rollout Plan; Open Questions. Be concrete and ground it in the findings.";
+    ask = `Write a detailed, single-FEATURE PRD. Include in order, where supported: "Overview"; "Business Context"; "Problem & Users"; "Goals & Non-Goals"; "User Stories & Acceptance Criteria" as a table ["As a…","I want…","So that…","Acceptance criteria"]; "Functional Requirements"; "Edge Cases & Error States"; "Regulatory & Compliance"; "Dependencies & Risks"; "Success Metrics" as a table ["Metric","Target","How measured"]; "Rollout Plan"; "Open Questions". Be concrete and grounded in the findings.`;
   }
+
   const notes = notesText(w);
   const raw = await provider.generateJson<{ sections?: Section[] }>({
-    system: "You are a senior product manager turning validated discovery findings into a polished, detailed deliverable a team can act on.",
-    prompt: `ORIGINAL INPUT (${w.inputType}):\n"""\n${w.input.slice(0, 3000)}\n"""\n\nBUSINESS CONTEXT:\n${contextText(w) || "(none captured)"}\n\nVALIDATED FINDINGS:\n${context || "(none)"}\n${notes ? `\nADDED CONTEXT FROM THE USER:\n${notes}\n` : ""}\n${ask}\n\n${shape}`,
-    maxTokens: 3600,
+    system:
+      "You are a principal strategy consultant and senior product manager. You turn validated discovery findings into an elaborate, methodology-driven, well-structured deliverable. You distinguish evidence from inference, never fabricate data or table rows, and prefer specific, decision-useful analysis over generic prose.",
+    prompt: `ORIGINAL INPUT (${w.inputType}):\n"""\n${w.input.slice(0, 3000)}\n"""\n\nBUSINESS CONTEXT:\n${contextText(w) || "(none captured)"}\n\nVALIDATED FINDINGS (by lens):\n${context || "(none)"}\n${notes ? `\nADDED CONTEXT FROM THE USER:\n${notes}\n` : ""}\n${ask}\n\n${shape}`,
+    maxTokens: 5000,
   });
   const s = Array.isArray(raw?.sections) ? raw.sections : [];
   return s.length ? s.map(norm) : demo(w, kind, variant);
 }
 
 function norm(s: Section): Section {
-  return {
-    heading: String(s.heading || "Section"),
-    body: s.body ? String(s.body) : undefined,
-    bullets: Array.isArray(s.bullets) ? s.bullets.map(String) : undefined,
-  };
+  const out: Section = { heading: String(s.heading || "Section") };
+  if (s.method) out.method = String(s.method);
+  if (s.body) out.body = String(s.body);
+  if (Array.isArray(s.bullets)) out.bullets = s.bullets.map(String);
+  if (s.table && Array.isArray(s.table.headers) && Array.isArray(s.table.rows)) {
+    out.table = {
+      headers: s.table.headers.map(String),
+      rows: s.table.rows.filter(Array.isArray).map((r) => r.map(String)),
+    };
+  }
+  return out;
 }
 
 /* ------------------------------ demo (offline) --------------------------- */
@@ -257,24 +284,69 @@ function demoAnalysis(
   const sections: Section[] = [
     {
       heading: "Executive Synthesis",
+      method: "Cross-lens synthesis",
       body: `This analysis pulls together ${present.length} lenses on “${clip}”. The through-line: the objective is to ${lower(c.objective || "improve the target outcome")}, and the findings converge on a few themes below.`,
       bullets: themes.slice(0, 5),
     },
   ];
   if (ctxSec) sections.push(ctxSec);
 
+  // Evidence Map — a structured table across every lens.
+  const evidenceRows: string[][] = [];
+  for (const a of present) {
+    const name = getAgent(a.agentId)?.name ?? a.agentId;
+    for (const f of a.findings.filter((f) => f.verdict !== "incorrect")) {
+      evidenceRows.push([f.title, name, f.strength ?? "Hypothesis", firstSentence(f.detail)]);
+    }
+  }
+  if (evidenceRows.length) {
+    sections.push({
+      heading: "Evidence Map",
+      method: "Evidence grading",
+      body: "Every key finding, the lens it came from, how well-supported it is, and why it matters.",
+      table: { headers: ["Insight", "From", "Evidence strength", "Why it matters"], rows: evidenceRows },
+    });
+  }
+
   for (const a of present) {
     const kept = a.findings.filter((f) => f.verdict !== "incorrect");
     if (kept.length === 0 && !a.userNotes) continue;
     const heading = ANALYSIS_TITLE[a.agentId] || `${getAgent(a.agentId)?.name} Analysis`;
     const lead = LENS[a.agentId] || "The findings indicate";
+    const method =
+      a.agentId === "user_research" ? "Jobs-to-be-Done"
+      : a.agentId === "market" ? "Competitive matrix"
+      : a.agentId === "process_mining" ? "Process / journey mapping"
+      : a.agentId === "business_priority" ? "Value vs effort"
+      : undefined;
     const top = kept[0];
     const body = top
       ? `${lead} ${lower(top.title)}. ${top.detail} Taken together, the findings below shape how to act.`
       : "The team added context worth carrying forward.";
     const bullets = kept.map((f) => `${f.title} — ${f.detail}`);
     if (a.userNotes) bullets.push(`(Team note) ${a.userNotes}`);
-    sections.push({ heading, body, bullets });
+    sections.push({ heading, method, body, bullets });
+  }
+
+  // Opportunity Portfolio — a scored table.
+  const oppRows: string[][] = [];
+  for (const a of present) {
+    for (const f of a.findings.filter((f) => f.verdict !== "incorrect").slice(0, 1)) {
+      oppRows.push([
+        `Address: ${f.title}`,
+        a.agentId === "user_research" || a.agentId === "defect_detection" ? "High" : "Medium",
+        a.agentId === "business_priority" ? "High" : "Medium",
+        f.strength ?? "Hypothesis",
+      ]);
+    }
+  }
+  if (oppRows.length) {
+    sections.push({
+      heading: "Opportunity Portfolio",
+      method: "How-Might-We + opportunity scoring",
+      body: "Candidate opportunities scored on value and evidence — validate before committing.",
+      table: { headers: ["Opportunity", "User value", "Business value", "Evidence"], rows: oppRows },
+    });
   }
 
   sections.push({
@@ -293,6 +365,10 @@ function demoAnalysis(
 }
 
 function lower(s: string): string { return s.charAt(0).toLowerCase() + s.slice(1); }
+function firstSentence(s: string): string {
+  const m = (s || "").split(/(?<=[.!?])\s/)[0] || s || "";
+  return m.length > 120 ? m.slice(0, 117) + "…" : m;
+}
 function bulletsOr(items: { title: string; detail: string }[], fallback: string[]): string[] {
   return items.length ? items.map((i) => `${i.title} — ${i.detail}`) : fallback;
 }

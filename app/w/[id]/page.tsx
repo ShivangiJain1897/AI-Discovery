@@ -12,7 +12,7 @@ interface AgentState {
   status: "pending" | "intake" | "running" | "complete" | "error";
   summary?: string; findings: Finding[]; userNotes?: string; error?: string;
 }
-interface OutputSection { heading: string; body?: string; bullets?: string[] }
+interface OutputSection { heading: string; method?: string; body?: string; bullets?: string[]; table?: { headers: string[]; rows: string[][] } }
 interface GeneratedOutput { id: string; kind: "analysis" | "prd" | "backlog"; variant?: "feature" | "product"; title: string; sections: OutputSection[]; createdAt: number }
 interface Workflow {
   id: string; input: string; inputType: string; detectedType?: string;
@@ -247,9 +247,21 @@ export default function WorkflowPage() {
               </div>
               {o.sections.map((s, i) => (
                 <div key={i} className="doc-section">
-                  <h4>{s.heading}</h4>
+                  <h4>{s.heading}{s.method && <span className="method-tag">{s.method}</span>}</h4>
                   {s.body && <p>{s.body}</p>}
                   {s.bullets && s.bullets.length > 0 && <ul>{s.bullets.map((b, j) => <li key={j}>{b}</li>)}</ul>}
+                  {s.table && s.table.headers.length > 0 && (
+                    <div className="doc-table-wrap">
+                      <table className="doc-table">
+                        <thead><tr>{s.table.headers.map((h, j) => <th key={j}>{h}</th>)}</tr></thead>
+                        <tbody>
+                          {s.table.rows.map((row, r) => (
+                            <tr key={r}>{row.map((cell, c) => <td key={c}>{cell}</td>)}</tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               ))}
             </article>
@@ -446,9 +458,15 @@ function downloadDoc(o: GeneratedOutput, w: Workflow) {
   const lines: string[] = [`# ${o.title}`, ""];
   lines.push(`> Source ${w.inputType}: ${w.input.replace(/\s+/g, " ").trim()}`, "");
   for (const s of o.sections) {
-    lines.push(`## ${s.heading}`, "");
+    lines.push(`## ${s.heading}${s.method ? ` _(${s.method})_` : ""}`, "");
     if (s.body) lines.push(s.body, "");
     if (s.bullets) { for (const b of s.bullets) lines.push(`- ${b}`); lines.push(""); }
+    if (s.table && s.table.headers.length) {
+      lines.push(`| ${s.table.headers.join(" | ")} |`);
+      lines.push(`| ${s.table.headers.map(() => "---").join(" | ")} |`);
+      for (const row of s.table.rows) lines.push(`| ${row.map((c) => c.replace(/\|/g, "\\|")).join(" | ")} |`);
+      lines.push("");
+    }
   }
   lines.push("", "---", "_Generated with Discovery Studio — edit and expand as needed._");
   const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
