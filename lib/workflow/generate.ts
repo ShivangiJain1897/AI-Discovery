@@ -12,6 +12,7 @@
  */
 import { getProvider } from "../llm/provider";
 import { getAgent } from "./agents";
+import { getFramework } from "./analysis";
 import type { GeneratedOutput, OutputKind, PrdVariant, Workflow } from "./types";
 
 interface Section {
@@ -75,7 +76,8 @@ function notesText(w: Workflow): string {
 export async function generate(
   w: Workflow,
   kind: OutputKind,
-  variant: PrdVariant = "feature"
+  variant: PrdVariant = "feature",
+  framework = "executive"
 ): Promise<GeneratedOutput> {
   const provider = await getProvider();
   const { blocks } = validatedContext(w);
@@ -83,18 +85,19 @@ export async function generate(
 
   if (provider.mode === "live") {
     try {
-      sections = await live(w, kind, variant, blocks.join("\n\n"));
+      sections = await live(w, kind, variant, framework, blocks.join("\n\n"));
     } catch {
-      sections = demo(w, kind, variant);
+      sections = demo(w, kind, variant, framework);
     }
   } else {
-    sections = demo(w, kind, variant);
+    sections = demo(w, kind, variant, framework);
   }
 
   const isProduct = kind === "prd" && variant === "product";
+  const fw = getFramework(framework);
   const title =
     kind === "analysis"
-      ? "Discovery analysis"
+      ? (fw?.name ?? "Analysis")
       : kind === "backlog"
         ? "Prioritized backlog"
         : isProduct
@@ -111,7 +114,7 @@ export async function generate(
   };
 }
 
-async function live(w: Workflow, kind: OutputKind, variant: PrdVariant, context: string): Promise<Section[]> {
+async function live(w: Workflow, kind: OutputKind, variant: PrdVariant, framework: string, context: string): Promise<Section[]> {
   const provider = await getProvider();
   const shape =
     'Return JSON: { "sections": [ { "heading": string, "method"?: string, "body"?: string, "bullets"?: string[], "table"?: { "headers": string[], "rows": string[][] } } ] }. ' +
@@ -119,17 +122,8 @@ async function live(w: Workflow, kind: OutputKind, variant: PrdVariant, context:
 
   let ask: string;
   if (kind === "analysis") {
-    ask = `Write an ELABORATE, consulting-grade DISCOVERY ANALYSIS — the depth a senior strategy consultant would deliver, not a summary. Apply named methodologies and show your reasoning in STRUCTURED form (tables where a matrix is clearer than prose). Interpret, don't restate; label evidence strength/confidence; be specific and non-generic.
-
-Produce these sections in order, including only those the findings can support:
-1. "Executive Synthesis" — the 3-5 cross-cutting themes and the single most important takeaway (body + bullets).
-2. "Evidence Map" (method: "Evidence grading") — a table with headers ["Insight","From","Evidence strength","Why it matters"], one row per key finding.
-3. "Users & Jobs-to-be-Done" (method: "JTBD") — segments, jobs, needs, pains; body + bullets.
-4. "Competitive & Market" (method: "Competitive matrix") — a table ["Competitor / Alternative","Positioning","Strength","Weakness / gap"] where evidence supports it, plus interpretation.
-5. "Journey & Friction" (method: "Journey mapping") — a table ["Stage","User goal","Friction / pain","Opportunity"] where applicable.
-6. "Opportunity Portfolio" (method: "How-Might-We + opportunity scoring") — a table ["Opportunity","User value","Business value","Evidence","Confidence"].
-7. "Risks & Assumptions to Validate" — the assumptions that most threaten the conclusion.
-8. "Recommended Next Steps" — a sequenced, specific action list.`;
+    const fw = getFramework(framework) ?? getFramework("executive")!;
+    ask = `Perform a "${fw.name}" analysis (methodology: ${fw.method}) on the research findings. Be elaborate and consulting-grade — interpret, don't restate; label evidence strength/confidence; be specific and non-generic.\n\n${fw.ask}`;
   } else if (kind === "backlog") {
     ask = `Produce a prioritized backlog using RICE-style reasoning. Include:
 1. "How this was prioritized" (method: "RICE") — short body explaining the scoring logic.
@@ -149,7 +143,7 @@ Produce these sections in order, including only those the findings can support:
     maxTokens: 5000,
   });
   const s = Array.isArray(raw?.sections) ? raw.sections : [];
-  return s.length ? s.map(norm) : demo(w, kind, variant);
+  return s.length ? s.map(norm) : demo(w, kind, variant, framework);
 }
 
 function norm(s: Section): Section {
@@ -168,13 +162,17 @@ function norm(s: Section): Section {
 
 /* ------------------------------ demo (offline) --------------------------- */
 
-function demo(w: Workflow, kind: OutputKind, variant: PrdVariant): Section[] {
+function demo(w: Workflow, kind: OutputKind, variant: PrdVariant, framework = "executive"): Section[] {
   const { perAgent } = validatedContext(w);
   const clip = w.input.trim().replace(/\s+/g, " ").slice(0, 300);
   const c = contextMap(w);
   const ctxSec = contextSection(w);
 
-  if (kind === "analysis") return demoAnalysis(w, clip, c, ctxSec);
+  if (kind === "analysis") {
+    return framework === "executive"
+      ? demoAnalysis(w, clip, c, ctxSec)
+      : demoFramework(w, framework, ctxSec);
+  }
 
   if (kind === "backlog") {
     const now: string[] = [];
@@ -361,6 +359,43 @@ function demoAnalysis(
     "Use the backlog to sequence the rest",
     ...openQuestions(w).slice(0, 3).map((q) => `Resolve: ${q}`),
   ] });
+  return sections;
+}
+
+/** A generic-but-structured demo for any analysis framework (offline mode). */
+function demoFramework(w: Workflow, framework: string, ctxSec: Section | null): Section[] {
+  const fw = getFramework(framework) ?? getFramework("executive")!;
+  const present = w.agents.filter((a) => a.selected && a.status === "complete");
+  const rows: string[][] = [];
+  for (const a of present) {
+    const name = getAgent(a.agentId)?.name ?? a.agentId;
+    for (const f of a.findings.filter((f) => f.verdict !== "incorrect")) {
+      rows.push([f.title, name, f.strength ?? "Hypothesis", firstSentence(f.detail)]);
+    }
+  }
+  const sections: Section[] = [
+    {
+      heading: fw.name,
+      method: fw.method,
+      body: `A ${fw.name.toLowerCase()} of the research so far, using ${fw.method}. (Demo mode — enable live Claude for a full ${fw.name.toLowerCase()}; the structure below is real, the content is illustrative.)`,
+    },
+  ];
+  if (ctxSec) sections.push(ctxSec);
+  if (rows.length) {
+    sections.push({
+      heading: "Evidence considered",
+      method: "Evidence grading",
+      table: { headers: ["Insight", "From", "Evidence strength", "Why it matters"], rows },
+    });
+  }
+  sections.push({
+    heading: "Recommended next steps",
+    bullets: [
+      `Run this ${fw.name} live to get specific, evidence-graded output.`,
+      "Validate the strongest findings with real data before committing.",
+      ...openQuestions(w).slice(0, 2).map((q) => `Resolve: ${q}`),
+    ],
+  });
   return sections;
 }
 

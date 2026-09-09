@@ -51,7 +51,16 @@ export default function WorkflowPage() {
   const [genBusy, setGenBusy] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [frameworks, setFrameworks] = useState<{ id: string; name: string; blurb: string; method: string }[]>([]);
+  const [selectedFw, setSelectedFw] = useState<Set<string>>(new Set(["executive"]));
   const endRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    fetch("/api/agents").then((r) => r.json()).then((d) => setFrameworks(d.frameworks || [])).catch(() => {});
+  }, []);
+  function toggleFw(fid: string) {
+    setSelectedFw((prev) => { const n = new Set(prev); n.has(fid) ? n.delete(fid) : n.add(fid); return n; });
+  }
 
   const load = useCallback(async () => {
     try {
@@ -116,12 +125,12 @@ export default function WorkflowPage() {
     }
   }
 
-  async function generate(kind: "analysis" | "prd" | "backlog", variant?: "feature" | "product") {
-    const key = kind === "prd" ? `prd-${variant}` : kind;
+  async function generate(kind: "analysis" | "prd" | "backlog", variant?: "feature" | "product", framework?: string) {
+    const key = kind === "prd" ? `prd-${variant}` : kind === "analysis" ? `an-${framework}` : kind;
     setGenBusy(key); setError("");
     try {
       const r = await fetch(`/api/workflow/${id}/generate`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, variant }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, variant, framework }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Generate failed.");
@@ -130,6 +139,16 @@ export default function WorkflowPage() {
       setError(e instanceof Error ? e.message : "Generate failed.");
     } finally {
       setGenBusy(null);
+    }
+  }
+
+  /** Stage 2 — run each selected analysis framework in turn. */
+  async function runAnalyses() {
+    const list = Array.from(selectedFw);
+    if (list.length === 0) return;
+    for (const f of list) {
+      // eslint-disable-next-line no-await-in-loop
+      await generate("analysis", undefined, f);
     }
   }
 
@@ -275,29 +294,60 @@ export default function WorkflowPage() {
       <div className="dock">
         <div className="dock-inner">
           {hasRun ? (
-            <div className="dock-actions">
-              <span className="dock-label">Generate:</span>
-              <button className="chip-gen analysis" onClick={() => generate("analysis")} disabled={genBusy !== null} type="button">
-                {genBusy === "analysis" ? "…" : "Analysis"}
-              </button>
-              <button className="chip-gen" onClick={() => generate("prd", "feature")} disabled={genBusy !== null} type="button">
-                {genBusy === "prd-feature" ? "…" : "Feature PRD"}
-              </button>
-              <button className="chip-gen" onClick={() => generate("prd", "product")} disabled={genBusy !== null} type="button">
-                {genBusy === "prd-product" ? "…" : "Product PRD"}
-              </button>
-              <button className="chip-gen" onClick={() => generate("backlog")} disabled={genBusy !== null} type="button">
-                {genBusy === "backlog" ? "…" : "Backlog"}
-              </button>
-              <button className="chip-gen ghost" onClick={runAll} disabled={running} type="button" title="Re-run agents with updated intake">
-                {running ? "…" : "↻ Re-run"}
-              </button>
+            <div className="stages">
+              {/* Stage 1 — Research (done) */}
+              <div className="stage-block done">
+                <div className="stage-title"><span className="stage-num">1</span> Research
+                  <span className="stage-hint">{selected.length} agent{selected.length === 1 ? "" : "s"} · complete</span>
+                  <button className="stage-rerun" onClick={runAll} disabled={running} type="button">{running ? "…" : "↻ re-run"}</button>
+                </div>
+              </div>
+
+              {/* Stage 2 — Analysis (pick frameworks, multiselect) */}
+              <div className="stage-block">
+                <div className="stage-title"><span className="stage-num">2</span> Analysis
+                  <span className="stage-hint">pick frameworks to run on the research</span>
+                </div>
+                <div className="fw-grid">
+                  {frameworks.map((f) => {
+                    const on = selectedFw.has(f.id);
+                    const busy = genBusy === `an-${f.id}`;
+                    return (
+                      <button key={f.id} className={`fw-chip ${on ? "on" : ""}`} onClick={() => toggleFw(f.id)} title={f.blurb} type="button">
+                        <span className="fw-check">{busy ? "…" : on ? "✓" : "＋"}</span>
+                        <span className="fw-name">{f.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button className="chip-gen analysis wide" onClick={runAnalyses} disabled={genBusy !== null || selectedFw.size === 0} type="button">
+                  {genBusy?.startsWith("an-") ? "Analyzing…" : `Run ${selectedFw.size} analysis${selectedFw.size === 1 ? "" : "es"} →`}
+                </button>
+              </div>
+
+              {/* Stage 3 — Generate (final artifact) */}
+              <div className="stage-block">
+                <div className="stage-title"><span className="stage-num">3</span> Generate
+                  <span className="stage-hint">turn the analysis into a deliverable</span>
+                </div>
+                <div className="dock-actions">
+                  <button className="chip-gen" onClick={() => generate("prd", "feature")} disabled={genBusy !== null} type="button">
+                    {genBusy === "prd-feature" ? "…" : "Feature PRD"}
+                  </button>
+                  <button className="chip-gen" onClick={() => generate("prd", "product")} disabled={genBusy !== null} type="button">
+                    {genBusy === "prd-product" ? "…" : "Product PRD"}
+                  </button>
+                  <button className="chip-gen" onClick={() => generate("backlog")} disabled={genBusy !== null} type="button">
+                    {genBusy === "backlog" ? "…" : "Backlog"}
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="dock-actions">
-              <span className="dock-label">Fill intake above, then</span>
+              <span className="dock-label"><span className="stage-num">1</span> Research — fill intake above, then</span>
               <button className="chip-gen analysis" onClick={runAll} disabled={running} type="button">
-                {running ? "Running…" : `Run ${selected.length} agents →`}
+                {running ? "Running…" : `Run ${selected.length} research agents →`}
               </button>
             </div>
           )}

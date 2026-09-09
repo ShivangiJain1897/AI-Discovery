@@ -13,16 +13,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   let kind: "analysis" | "prd" | "backlog" = "prd";
   let variant: "feature" | "product" = "feature";
+  let framework = "executive";
   try {
     const b = await req.json();
     if (b?.kind === "backlog") kind = "backlog";
     else if (b?.kind === "analysis") kind = "analysis";
     if (b?.variant === "product") variant = "product";
+    if (typeof b?.framework === "string" && b.framework) framework = b.framework;
   } catch {
     /* default: feature prd */
   }
 
-  const output = await generate(w, kind, variant);
+  const output = await generate(w, kind, variant, framework);
   w.outputs = [output, ...w.outputs];
   w.stage = "generate";
   await saveWorkflow(w);

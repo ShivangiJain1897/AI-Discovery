@@ -142,8 +142,8 @@ export default function Home() {
 
           <div className="agent-pick">
             <div className="agent-pick-head">
-              <span>Agents on the case</span>
-              <span className="muted">{selected.size} selected</span>
+              <span><span className="stage-num">1</span> Research — pick your agents</span>
+              <span className="muted">{selected.size} selected · then analyze &amp; generate</span>
             </div>
             <div className="agent-grid">
               {agents.map((a) => {
