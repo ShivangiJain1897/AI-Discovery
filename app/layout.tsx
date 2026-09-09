@@ -3,9 +3,9 @@ import "./globals.css";
 import Shell from "./components/Shell";
 
 export const metadata: Metadata = {
-  title: "Discovery Studio",
+  title: "AI Discovery",
   description:
-    "Turn a problem, idea, or transcript into product discovery: a team of AI agents (user research, process, defects, market, regulatory, business priority) intake what they need, surface findings you validate, and generate a PRD or backlog you own.",
+    "Describe a product or feature. AI researches it — users, market, bugs, process — then writes you a use case doc, a PRD, a backlog or a business case.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

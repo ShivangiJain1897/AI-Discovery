@@ -1,5 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { extractJson, type GenerateJsonParams, type LlmProvider } from "./provider";
+import {
+  EmptyOutputError,
+  TruncatedOutputError,
+  extractJson,
+  type GenerateJsonParams,
+  type LlmProvider,
+} from "./provider";
 
 /**
  * Live provider backed by Claude. Used automatically when ANTHROPIC_API_KEY
@@ -24,20 +30,80 @@ export class AnthropicProvider implements LlmProvider {
     this.label = `Claude (${this.model})`;
   }
 
+  /**
+   * Ask Claude for JSON.
+   *
+   * The failure this guards against: a response that hits `max_tokens` is cut
+   * off mid-JSON, and a response whose whole budget went elsewhere arrives with
+   * no text at all. Both used to surface as "No JSON found in model output",
+   * which named the symptom and hid the cause. Now we read `stop_reason`, retry
+   * a truncated call once with real headroom, salvage what we can, and if it
+   * still fails, say exactly what happened.
+   */
   async generateJson<T = unknown>(params: GenerateJsonParams): Promise<T> {
+    const budget = params.maxTokens ?? 4096;
+
+    const first = await this.attempt<T>(params, budget);
+    if (first.ok) return first.value;
+
+    // Truncated or empty: the model needed more room than it had. Give it real
+    // headroom rather than failing the whole lens over a token ceiling.
+    if (first.retryable) {
+      const second = await this.attempt<T>(params, Math.min(Math.max(budget * 2, 4096), 16000));
+      if (second.ok) return second.value;
+      throw new Error(`${second.reason} (retried with a larger budget and it still didn't fit)`);
+    }
+    throw new Error(first.reason);
+  }
+
+  /** One call. Returns the parsed value, or why it couldn't be parsed. */
+  private async attempt<T>(
+    params: GenerateJsonParams,
+    maxTokens: number
+  ): Promise<{ ok: true; value: T } | { ok: false; reason: string; retryable: boolean }> {
     const msg = await this.client.messages.create({
       model: this.model,
-      max_tokens: params.maxTokens ?? 2048,
+      max_tokens: maxTokens,
       system:
         params.system +
-        "\n\nRespond with a single valid JSON value and nothing else. Do not wrap it in prose or markdown fences.",
+        "\n\nRespond with a single valid JSON value and nothing else. No preamble, no explanation, no markdown fences. Keep individual string values concise so the whole JSON value fits comfortably within the token limit — a complete, shorter answer is far better than a longer one that gets cut off.",
       messages: [{ role: "user", content: params.prompt }],
     });
+
     const text = msg.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
-      .join("\n");
-    return extractJson<T>(text);
+      .join("\n")
+      .trim();
+
+    const truncated = msg.stop_reason === "max_tokens";
+
+    if (!text) {
+      const kinds = [...new Set(msg.content.map((b) => b.type))];
+      return {
+        ok: false,
+        retryable: true,
+        reason: truncated
+          ? `The model used its entire ${maxTokens}-token budget without producing an answer.`
+          : `The model returned no text (stop_reason: ${msg.stop_reason ?? "unknown"}${
+              kinds.length ? `, content: ${kinds.join(", ")}` : ", no content"
+            }).`,
+      };
+    }
+
+    try {
+      return { ok: true, value: extractJson<T>(text) };
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        // A cut-off response is worth retrying; genuinely non-JSON prose is not.
+        retryable: truncated || err instanceof TruncatedOutputError || err instanceof EmptyOutputError,
+        reason: truncated
+          ? `The model's answer was cut off at the ${maxTokens}-token limit.`
+          : `Couldn't read the model's answer as JSON: ${detail} Output began: ${JSON.stringify(text.slice(0, 200))}`,
+      };
+    }
   }
 
   /**

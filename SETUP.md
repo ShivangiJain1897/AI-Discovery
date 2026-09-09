@@ -1,98 +1,85 @@
 # Setup & Run
 
-Get the AI Discovery pilot running on your machine in a couple of minutes.
-
 ## Prerequisites
 
-- **Node.js 18+** (20+ recommended) and **npm** — check with `node -v`
+- **Node.js 20+** and **npm**
 - **git**
-- No database, no API key required to start (it runs in demo mode + real reviews)
+- No database or API key needed to start
 
-## 1. Get the code
+## Install & run
 
 ```bash
 git clone https://github.com/ShivangiJain1897/AI-Discovery.git
 cd AI-Discovery
-git checkout claude/ai-discovery-payer-platform-tjx1ri
-```
-
-## 2. Install & run
-
-```bash
 npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**.
+Open **http://localhost:3000**. (Port taken? `PORT=3001 npm run dev`.)
 
-> Port 3000 already in use? Run `PORT=3001 npm run dev` and open that port instead.
+## Using it
 
-## 3. Use it
+1. **Describe a product or feature** in the box. Say which it is — the PRD comes out differently
+   for each.
+2. **Leave the research checkboxes alone** unless you want to change something. Four are ticked by
+   default; add Compliance or Feasibility if they matter for your idea.
+3. **Hit Discover.** It reads the idea, runs every lens in parallel, and pulls the findings
+   together. About a minute.
+4. **Read what it found** — headline first, then each lens, every finding with a confidence level
+   and what it's based on.
+5. **Click a document**: Use cases, PRD, Product backlog or Business case. Take as many as you
+   want; none of them re-runs the research. Each downloads as Markdown.
+6. **Keep talking.** The box at the bottom takes anything — a question about a finding, a request
+   for research that wasn't run, another document, a change to one you already have ("the backlog
+   is too vague, add acceptance criteria"), or a fact only you know ("support logged 1,200 calls
+   about this last quarter"). It works out which you meant. Revisions are versioned, and anything
+   you tell it feeds everything written afterwards.
 
-1. **Paste your input** — a feature idea, a written requirement, or a meeting transcript.
-   (Or click **Try an example** to prefill one.)
-2. (Optional) Set the input type and add **product context**, e.g. `Medicare Advantage member app`.
-3. **Choose what to generate** — tick any capabilities: PRD, Detailed Requirements, Market /
-   Competitive / Feedback research, Process & Domain Analysis, Defect Foresight, or Business Value
-   (quantifiable / qualitative).
-4. Click **Generate**.
+## Demo mode vs live
 
-You'll get one clean output card per capability — with sections, bullets, and tables — plus your
-input echoed for reference.
+Without an API key you get the full flow, but the findings are clearly labelled as illustrative
+patterns rather than research into your idea, and documents come back as the real outline with your
+research slotted into it. It's there so you can see how it works — not to be mistaken for output.
 
-Everything works with **no API key** (demo mode returns strong illustrative templates with your
-input woven in). Add a key for live, Claude-generated analysis.
-
-## 4. Prove the "real data" grounding (no UI needed)
-
-Needs normal outbound internet (it calls Apple's public `itunes.apple.com` endpoints):
-
-```bash
-npm run reviews:probe -- "Aetna Health"
-# also works with an App Store URL or a numeric app id
-```
-
-Prints the resolved app, how many real reviews were fetched, and the grounded defect signals
-with quoted, linked citations.
-
-Run the offline tests (validate parsing against Apple's real schema + clustering):
-
-```bash
-npm run test:grounding
-```
-
-## 5. (Optional) Enable live Claude agents
+For real research:
 
 ```bash
 cp .env.example .env.local
-# edit .env.local and set:
-#   ANTHROPIC_API_KEY=sk-ant-...
+# set ANTHROPIC_API_KEY=sk-ant-...
 npm run dev
 ```
 
-The badge in the top-right flips from **Demo mode** to **Live · Claude**. The agents now reason
-with Claude instead of seed data; the Defect agent still cites real reviews.
+The badge switches to **Live · Claude**, and the market and compliance lenses start searching the
+web and citing sources.
 
-You can also override the model: set `ANTHROPIC_MODEL` in `.env.local`.
+### Is it actually live?
 
-## Build for production
+The badge only checks a key exists. To be sure Claude is really responding:
+
+```
+GET http://localhost:3000/api/health
+```
+
+It makes a real call and reports back in plain English.
+
+## Production build
 
 ```bash
 npm run build
-npm run start        # serves the optimized build on http://localhost:3000
+npm run start
 ```
 
 ## Troubleshooting
 
-- **`itunes.apple.com` blocked / reviews not loading** — some corporate or CI networks block it.
-  The Defect agent falls back to clearly-labeled generated examples and says so; the rest of the
-  app is unaffected. On a normal network it fetches real data.
+- **Everything says "demo mode"** — no key, or an invalid one. Check `/api/health`.
+- **A lens says it "couldn't run"** — the error under it names the cause. The common one is the
+  model's answer being cut off at the token limit; the app now retries with more room and salvages
+  any findings that completed, so this should be rare. If it persists, the token budgets are in
+  `lib/discovery/run.ts`. Other lenses are unaffected — ask it to run that one again.
+- **Discover takes a while** — the lenses run in parallel but they're real model calls, and the
+  market lens searches the web first.
+- **Discoveries disappeared** — without `DATABASE_URL` they're in `.data/discoveries.json`. See
+  [`DEPLOY.md`](./DEPLOY.md) to use Postgres.
 - **Node version errors** — upgrade to Node 20+.
-- **Port conflict** — use `PORT=<n> npm run dev`.
-- **Nothing appears after "Run discovery"** — the run executes server-side and can take a few
-  seconds; the page polls and updates when it completes. Check the terminal for errors.
 
-## Where things live
-
-See [`README.md`](./README.md) for the architecture, the agent design, the grounding approach,
-and the roadmap to production.
+See [`README.md`](./README.md) for how it's built and how to change the lenses and documents.

@@ -2,14 +2,13 @@
   "name": "ai-discovery",
   "version": "0.1.0",
   "private": true,
-  "description": "AI Discovery platform for payer organizations — reimagining product discovery across value chains with a team of specialized AI agents.",
+  "description": "Describe a product or feature. AI researches it \u2014 users, market, bugs, process \u2014 then writes you a use case doc, a PRD, a backlog or a business case.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "reviews:probe": "node scripts/probe-reviews.ts",
-    "test:grounding": "node scripts/test-grounding.ts"
+    "test": "node --experimental-strip-types scripts/test-json.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
