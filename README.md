@@ -121,6 +121,18 @@ lib/
 - **Failure is honest.** No API key, or a failed call, produces the document's real outline with
   your findings slotted in and a note saying it wasn't written — never a convincing fake.
 
+## Reading the model's output
+
+Everything the model returns is JSON, and the code that reads it (`lib/llm/provider.ts`) has to cope
+with a response that got **cut off at the token limit** — a truncated object never balances its
+braces, so a naive parser reports "no JSON found" and loses the whole lens. Instead the provider
+checks `stop_reason`, retries once with real headroom, and salvages what completed: a response cut
+off during its fifth finding still yields the first four. A partly-written list item is dropped
+whole; a partly-written root object keeps the fields that finished. When nothing finished it fails
+loudly rather than returning half an answer.
+
+`npm test` covers that behaviour.
+
 ## Storage
 
 `DATABASE_URL` set → Postgres (`aid_discoveries`, JSONB). Otherwise `.data/discoveries.json`.

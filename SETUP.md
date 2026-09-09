@@ -70,6 +70,10 @@ npm run start
 ## Troubleshooting
 
 - **Everything says "demo mode"** — no key, or an invalid one. Check `/api/health`.
+- **A lens says it "couldn't run"** — the error under it names the cause. The common one is the
+  model's answer being cut off at the token limit; the app now retries with more room and salvages
+  any findings that completed, so this should be rare. If it persists, the token budgets are in
+  `lib/discovery/run.ts`. Other lenses are unaffected — **Research again** re-runs them all.
 - **Discover takes a while** — the lenses run in parallel but they're real model calls, and the
   market lens searches the web first.
 - **Discoveries disappeared** — without `DATABASE_URL` they're in `.data/discoveries.json`. See

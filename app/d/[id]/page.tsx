@@ -256,8 +256,15 @@ export default function DiscoveryPage() {
 
           {d.lenses.filter((l) => l.status === "error").map((l) => (
             <div key={l.lensId} className="card lens err">
-              <h3>{lensMeta(l.lensId)?.name ?? l.lensId} couldn&apos;t run</h3>
-              <p className="lens-sum">{l.error}</p>
+              <div className="lens-head">
+                <span className="lens-ico">{lensMeta(l.lensId)?.icon ?? "✦"}</span>
+                <h3>{lensMeta(l.lensId)?.name ?? l.lensId} couldn&apos;t run</h3>
+              </div>
+              <p className="lens-sum">
+                This lens failed, so nothing from it is included below. The other lenses are
+                unaffected — <b>Research again</b> re-runs them all.
+              </p>
+              <p className="lens-detail">{l.error}</p>
             </div>
           ))}
         </section>

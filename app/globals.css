@@ -234,8 +234,13 @@ code { background: var(--brand-soft); padding: 1px 5px; border-radius: 4px; font
 .lens-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
 .lens-ico { font-size: 17px; }
 .lens-head h3 { font-size: 14.5px; font-weight: 650; }
-.lens.err h3 { color: var(--danger); font-size: 14.5px; font-weight: 650; }
+.lens.err h3 { color: var(--danger); }
 .lens-sum { font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
+.lens-detail {
+  font-size: 12px; line-height: 1.55; color: var(--ink-faint); margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #fbfbfe; border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px;
+}
 .finds { display: flex; flex-direction: column; gap: 13px; margin-top: 14px; }
 .find { border-left: 2px solid var(--line-strong); padding-left: 12px; }
 .find-title { font-size: 13.5px; font-weight: 620; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

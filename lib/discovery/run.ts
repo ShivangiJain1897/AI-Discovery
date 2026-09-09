@@ -32,7 +32,7 @@ Return JSON:
   "problem": "the underlying problem, stated plainly — if the idea names a solution, say what problem it's solving",
   "goal": "what success would look like"
 }`,
-        maxTokens: 500,
+        maxTokens: 700,
       });
       return {
         industry: clean(raw?.industry) || guessIndustry(idea),
@@ -143,7 +143,7 @@ Report what you found. Return JSON:
 }
 
 Give 3 to 5 findings. Only mark a finding "High" if you can point to something concrete. If you're reasoning from experience rather than evidence about this specific case, that's "Low" and the basis should say so — that's a useful, honest answer, not a failure.`,
-    maxTokens: 2200,
+    maxTokens: 4000,
   });
 
   return {
@@ -241,7 +241,7 @@ Return JSON:
   "opportunities": ["2-4 specific things worth doing, not themes"],
   "risks": ["2-4 things that could sink this, or that we need to check first"]
 }`,
-        maxTokens: 1600,
+        maxTokens: 2500,
       });
 
       const s: Summary = {

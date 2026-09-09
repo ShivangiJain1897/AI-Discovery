@@ -100,7 +100,7 @@ Rules:
 ${documentSpec(def, d.kind)}
 
 Return JSON: { "sections": [ { "heading": string, "body"?: string, "bullets"?: string[], "table"?: { "headers": string[], "rows": string[][] } } ] }`,
-    maxTokens: 5000,
+    maxTokens: 8000,
   });
 
   const sections = normalize(raw?.sections);
