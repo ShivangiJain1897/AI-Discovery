@@ -51,14 +51,32 @@ export async function POST(req: Request) {
   const summary = await summarize(idea, kind, context, lenses, []);
 
   const now = Date.now();
+  const id = newDiscoveryId();
+  // Seed the conversation with the idea and the result, so the thread reads as
+  // one continuous exchange rather than starting blank underneath the findings.
+  const done = lenses.filter((l) => l.status === "done");
   const discovery: Discovery = {
-    id: newDiscoveryId(),
+    id,
     idea,
     kind,
     context,
     lenses,
     summary,
     documents: [],
+    turns: [
+      { id: "t_idea", role: "user", text: idea, createdAt: now },
+      {
+        id: "t_first",
+        role: "assistant",
+        text: summary.headline || `Researched this across ${done.length} lens${done.length === 1 ? "" : "es"}.`,
+        action: {
+          kind: "research",
+          label: `Researched ${done.length} lens${done.length === 1 ? "" : "es"}`,
+          lensIds: done.map((l) => l.lensId),
+        },
+        createdAt: now,
+      },
+    ],
     notes: [],
     mode: process.env.ANTHROPIC_API_KEY ? "live" : "demo",
     createdAt: now,

@@ -10,7 +10,7 @@ export async function GET() {
     lenses: LENSES.map(({ id, name, icon, blurb, standard, web }) => ({
       id, name, icon, blurb, standard, web: Boolean(web),
     })),
-    documents: DOCUMENTS.map(({ id, name, icon, blurb }) => ({ id, name, icon, blurb })),
+    documents: DOCUMENTS.map(({ id, name, icon, blurb, prose }) => ({ id, name, icon, blurb, prose })),
     mode: process.env.ANTHROPIC_API_KEY ? "live" : "demo",
   });
 }

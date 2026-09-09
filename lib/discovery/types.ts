@@ -2,10 +2,13 @@
  * AI Discovery — the whole model.
  *
  *   an idea  →  research  →  findings  →  a document you asked for
+ *                    ↑                            ↓
+ *                    └────────  keep talking  ────┘
  *
- * That's it. One Discovery object holds the idea, what the research found, and
- * every document generated from it. Documents are generated from the findings
- * already gathered, so asking for a second one never re-runs research.
+ * One Discovery object holds the idea, what the research found, every document
+ * generated from it, and the conversation that follows. Documents are written
+ * from findings already gathered, so asking for a second one never re-runs
+ * research — but you can ask for more research when you want it.
  */
 
 /** Are we discovering a whole product, or one feature of an existing one? */
@@ -72,6 +75,33 @@ export interface GeneratedDoc {
   documentId: DocumentId;
   title: string;
   sections: DocSection[];
+  /** What the PM asked for, when this is a refinement of an earlier version. */
+  instruction?: string;
+  /** Which version of this document type it is, from 1. */
+  version: number;
+  createdAt: number;
+}
+
+/**
+ * What the assistant did in reply — so the thread can show the result inline
+ * rather than making the PM hunt for what changed.
+ */
+export interface TurnAction {
+  kind: "answer" | "research" | "document" | "refine" | "context";
+  /** Short human summary, e.g. "Ran feasibility research". */
+  label: string;
+  /** Lenses run, for kind "research". */
+  lensIds?: LensId[];
+  /** The document produced, for kind "document" and "refine". */
+  docId?: string;
+}
+
+/** One message in the conversation. */
+export interface Turn {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  action?: TurnAction;
   createdAt: number;
 }
 
@@ -82,8 +112,11 @@ export interface Discovery {
   context: Context;
   lenses: LensResult[];
   summary?: Summary;
+  /** Every document made, newest last. Refining appends a version. */
   documents: GeneratedDoc[];
-  /** Extra context added after the fact; feeds every document generated later. */
+  /** The conversation. Keeps going after the first results land. */
+  turns: Turn[];
+  /** Extra context the PM supplied; feeds every document generated later. */
   notes: string[];
   mode: "live" | "demo";
   createdAt: number;

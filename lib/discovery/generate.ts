@@ -9,7 +9,18 @@ import { documentSpec, getDocument, type DocumentDef } from "./documents";
 import { getLens } from "./lenses";
 import type { Discovery, DocSection, Finding, GeneratedDoc } from "./types";
 
-export async function generateDocument(d: Discovery, documentId: string): Promise<GeneratedDoc> {
+export interface RefineOptions {
+  /** What the PM asked to be changed. */
+  instruction?: string;
+  /** The version being revised, so the rewrite builds on it. */
+  previous?: GeneratedDoc;
+}
+
+export async function generateDocument(
+  d: Discovery,
+  documentId: string,
+  opts: RefineOptions = {}
+): Promise<GeneratedDoc> {
   const def = getDocument(documentId);
   if (!def) throw new Error(`Unknown document: ${documentId}`);
   const provider = await getProvider();
@@ -17,19 +28,23 @@ export async function generateDocument(d: Discovery, documentId: string): Promis
   let sections: DocSection[];
   if (provider.mode === "live") {
     try {
-      sections = await live(d, documentId);
+      sections = await live(d, documentId, opts);
     } catch {
-      sections = skeleton(d, def);
+      sections = skeleton(d, def, opts);
     }
   } else {
-    sections = skeleton(d, def);
+    sections = skeleton(d, def, opts);
   }
+
+  const version = d.documents.filter((x) => x.documentId === def.id).length + 1;
 
   return {
     id: `doc_${Math.random().toString(36).slice(2, 8)}`,
     documentId: def.id,
     title: def.name,
     sections,
+    instruction: opts.instruction,
+    version,
     createdAt: Date.now(),
   };
 }
@@ -80,9 +95,18 @@ export function researchBlock(d: Discovery): string {
   return out.filter((x) => x !== undefined).join("\n");
 }
 
-async function live(d: Discovery, documentId: string): Promise<DocSection[]> {
+async function live(d: Discovery, documentId: string, opts: RefineOptions = {}): Promise<DocSection[]> {
   const def = getDocument(documentId)!;
   const provider = await getProvider();
+
+  // A refinement is a rewrite of a specific version, not a fresh attempt — so
+  // the parts the PM didn't complain about survive.
+  const revising =
+    opts.instruction && opts.previous
+      ? `\n\n---\n\nYOU ARE REVISING AN EXISTING VERSION. Here it is:\n\n${asMarkdown(opts.previous.sections)}\n\nTHE PM ASKED FOR THIS CHANGE:\n"""\n${opts.instruction.slice(0, 1500)}\n"""\n\nApply exactly that change. Keep everything else as it was — do not rewrite sections they did not ask about, and do not drop content to make room. Return the COMPLETE document, not just the changed parts.`
+      : opts.instruction
+        ? `\n\nTHE PM ASKED FOR THIS SPECIFICALLY:\n"""\n${opts.instruction.slice(0, 1500)}\n"""`
+        : "";
 
   const raw = await provider.generateJson<{ sections?: DocSection[] }>({
     system: `You are a senior product manager writing a document from research that has already been done.
@@ -97,14 +121,31 @@ Rules:
 
 ---
 
-${documentSpec(def, d.kind)}
+${documentSpec(def, d.kind)}${revising}
 
 Return JSON: { "sections": [ { "heading": string, "body"?: string, "bullets"?: string[], "table"?: { "headers": string[], "rows": string[][] } } ] }`,
     maxTokens: 8000,
   });
 
   const sections = normalize(raw?.sections);
-  return sections.length ? sections : skeleton(d, getDocument(documentId)!);
+  return sections.length ? sections : skeleton(d, getDocument(documentId)!, opts);
+}
+
+/** Render sections back to Markdown, so a revision can see what it's revising. */
+function asMarkdown(sections: DocSection[]): string {
+  const out: string[] = [];
+  for (const s of sections) {
+    out.push(`## ${s.heading}`);
+    if (s.body) out.push(s.body);
+    if (s.bullets?.length) out.push(...s.bullets.map((b) => `- ${b}`));
+    if (s.table) {
+      out.push(`| ${s.table.headers.join(" | ")} |`);
+      out.push(`| ${s.table.headers.map(() => "---").join(" | ")} |`);
+      for (const r of s.table.rows) out.push(`| ${r.join(" | ")} |`);
+    }
+    out.push("");
+  }
+  return out.join("\n").slice(0, 12000);
 }
 
 function normalize(raw: unknown): DocSection[] {
@@ -140,7 +181,20 @@ function normalize(raw: unknown): DocSection[] {
  * can never be mistaken for a finished document — but you can see the shape of
  * what you'd get, and the evidence is genuinely yours.
  */
-function skeleton(d: Discovery, def: DocumentDef): DocSection[] {
+function skeleton(d: Discovery, def: DocumentDef, opts: RefineOptions = {}): DocSection[] {
+  // Nothing can be rewritten without a model, so hand back what was there.
+  if (opts.previous) {
+    return [
+      {
+        heading: "Not revised",
+        body:
+          d.mode === "demo"
+            ? `Demo mode: there's no model to revise this with, so the document below is unchanged. You asked for: "${opts.instruction ?? ""}". Add an ANTHROPIC_API_KEY and ask again.`
+            : `The revision call failed, so the document below is unchanged. You asked for: "${opts.instruction ?? ""}". Try again.`,
+      },
+      ...opts.previous.sections,
+    ];
+  }
   const findings = d.lenses.filter((l) => l.status === "done").flatMap((l) => l.findings);
   const gaps = d.lenses.flatMap((l) => l.gaps);
   const byLens = (id: string) => d.lenses.find((l) => l.lensId === id)?.findings ?? [];
@@ -150,8 +204,8 @@ function skeleton(d: Discovery, def: DocumentDef): DocSection[] {
       heading: `Outline only — not yet written`,
       body:
         d.mode === "demo"
-          ? `Demo mode: there's no API key, so this hasn't been written. Below is the real structure of a ${def.name.toLowerCase()}, with the research from this discovery slotted into the sections it belongs in. Add an ANTHROPIC_API_KEY and click ${def.name} again for the written document.`
-          : `The document couldn't be written — the AI call didn't return a usable result. Your research is intact and slotted into the outline below. Click ${def.name} again to retry.`,
+          ? `Demo mode: there's no API key, so this hasn't been written. Below is the real structure of a ${def.prose}, with the research from this discovery slotted into the sections it belongs in. Add an ANTHROPIC_API_KEY and ask for it again to get the written document.`
+          : `The ${def.prose} couldn't be written — the AI call didn't return a usable result. Your research is intact and slotted into the outline below. Ask again to retry.`,
     },
   ];
 

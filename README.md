@@ -4,9 +4,11 @@ Describe a product or a feature. AI researches it, then writes you the document 
 
 ```
    your idea  →  research  →  what we found  →  a document
+                     ↑                              ↓
+                     └───────  keep talking  ───────┘
 ```
 
-That's the whole thing. There's one input box and, at the end, four buttons.
+One input box to start. After that it's a conversation.
 
 ---
 
@@ -14,7 +16,8 @@ That's the whole thing. There's one input box and, at the end, four buttons.
 
 **1. You describe an idea** — a product or a feature, in plain words. One box.
 
-**2. It researches it.** Four lenses run at once, by default:
+**2. It researches it.** Four lenses run at once, by default (the other two are one click away, or
+just ask for them later):
 
 | Lens | Looks at |
 | --- | --- |
@@ -41,6 +44,20 @@ findings, every one carrying a confidence level and what it's based on.
 Take all four if you want. **Generating a document never re-runs the research** — they all come
 from the same findings. Every document downloads as Markdown.
 
+**5. Then keep going.** The discovery doesn't end when the documents appear. One box at the bottom
+takes whatever you want to say, and works out what you meant:
+
+| You type | What happens |
+| --- | --- |
+| "Why do you think the spreadsheet is the real competitor?" | Answers from the research, naming the lens it came from — or says the research doesn't cover it and which lens would |
+| "Look into the compliance angle" | Runs that lens, folds it into the findings, updates the summary |
+| "Give me the backlog" | Writes it from the research already gathered |
+| "The PRD is too vague — add acceptance criteria" | Rewrites that document with the change applied, keeping everything you didn't complain about. Versioned, so you can see what changed |
+| "Support logged 1,200 calls about this last quarter" | Keeps it, and uses it in everything written from then on |
+
+You never pick which kind of thing you're doing — the chips above the box are just prefilled
+messages, so there's one path through the whole app.
+
 ## Two things that keep it honest
 
 **Nothing is invented.** No made-up market sizes, competitor features, prices or ROI percentages.
@@ -54,9 +71,9 @@ useful than a confident one that isn't true.
 
 ## Add what you know
 
-The research doesn't have your support ticket volumes or your customer quotes. There's a box on
-every discovery to add them — anything you add feeds every document you generate afterwards, and
-**Research again** folds it into the findings too.
+The research doesn't have your support ticket volumes or your customer quotes. Just tell it — say
+"support logged 1,200 calls about this last quarter" and it keeps that, and uses it in everything
+written from then on. Ask it to research a lens again and it folds your context into the findings too.
 
 ---
 
@@ -92,8 +109,7 @@ app/
     meta/route.ts                       Lenses, documents, live-or-demo
     discovery/route.ts                  POST: read the idea, run every lens, summarize — one call
     discovery/[id]/route.ts             GET / PATCH (add context) / DELETE
-    discovery/[id]/rerun/route.ts       Research again, picking up added context
-    discovery/[id]/document/route.ts    Write one document from the findings
+    discovery/[id]/chat/route.ts        One message — question, research, document or revision
     health/route.ts                     Truthful live-path check
 
 lib/
@@ -102,7 +118,8 @@ lib/
     lenses.ts       The six lenses and how each one thinks
     documents.ts    The four documents and their section outlines
     run.ts          Read the idea → run the lenses in parallel → summarize
-    generate.ts     Findings → a document
+    chat.ts         Route a message: question, research, document, revision or context
+    generate.ts     Findings → a document (and revisions of one)
     store.ts
   llm/              Claude when there's a key, honest fallback when there isn't
   storage/          Postgres when DATABASE_URL is set, a JSON file otherwise
@@ -113,6 +130,9 @@ lib/
 - **One object, one call.** Hitting Discover runs everything — reading the idea, all the lenses in
   parallel, and the summary — and stores it as a single `Discovery`. There's no plan to approve and
   no stages to drive.
+- **One box, one path.** Everything after that goes through `chat.ts`, including the quick chips —
+  they just send prefilled messages. So there is exactly one route through the app to maintain, and
+  the thread is always a complete record of what happened.
 - **Documents read findings, never research.** `generate.ts` has no path to a research call, so
   "asking for a second document doesn't redo the work" is true by construction.
 - **Lenses and documents are data.** Adding either is one entry in `lenses.ts` or `documents.ts`;

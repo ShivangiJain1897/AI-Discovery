@@ -17,6 +17,9 @@ export interface DocumentDef {
   icon: string;
   /** One line, shown on the button. */
   blurb: string;
+  /** How to refer to it mid-sentence. Not just name.toLowerCase() — "PRD" is an
+   *  acronym and lowercasing it reads as a typo. */
+  prose: string;
   /** The section headings, in order. Varies by product vs feature. */
   outline: (kind: Kind) => string[];
   /** How to write it well — appended to the prompt after the outline. */
@@ -29,6 +32,7 @@ export const DOCUMENTS: DocumentDef[] = [
     name: "Use cases",
     icon: "📋",
     blurb: "Who does what, when, and what happens.",
+    prose: "use cases",
     outline: () => ["What this is", "Users", "Use cases", "Out of scope", "Open questions"],
     guidance: `"Users" is a table ["User type","What they're trying to do","What's hard today"].
 "Use cases" is a table ["#","Use case","Trigger","Steps","Outcome","Priority"] — steps as a short ordered sequence, not a paragraph.
@@ -40,6 +44,7 @@ Each use case must be something a real person does, with a trigger and an outcom
     name: "PRD",
     icon: "📄",
     blurb: "The spec a team could build from.",
+    prose: "PRD",
     outline: (kind) =>
       kind === "product"
         ? [
@@ -67,6 +72,7 @@ Requirements must be clear and testable. Drop "Constraints & compliance" entirel
     name: "Product backlog",
     icon: "🗂️",
     blurb: "Epics and stories, prioritised.",
+    prose: "product backlog",
     outline: () => ["How this is ordered", "Epics", "Stories", "Now / Next / Later", "Not doing yet"],
     guidance: `"How this is ordered" is two sentences on the reasoning. Be honest: with no usage data, say the priorities are relative judgement, not a calculation.
 "Epics" is a table ["Epic","What it delivers","Why it matters","Priority"].
@@ -80,6 +86,7 @@ Every story must be independently valuable and small enough to build. Trace them
     name: "Business case",
     icon: "💷",
     blurb: "What it costs, what it returns, what's assumed.",
+    prose: "business case",
     outline: () => [
       "The ask", "Why now", "What we'd do", "Assumptions", "Where the value comes from",
       "Costs", "What would make this worth it", "Risks", "Recommendation",

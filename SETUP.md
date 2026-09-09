@@ -29,9 +29,11 @@ Open **http://localhost:3000**. (Port taken? `PORT=3001 npm run dev`.)
    and what it's based on.
 5. **Click a document**: Use cases, PRD, Product backlog or Business case. Take as many as you
    want; none of them re-runs the research. Each downloads as Markdown.
-6. **Add what you know** in the box near the bottom — your ticket volumes, customer quotes,
-   constraints. It feeds every document you make afterwards. Hit **Research again** to fold it into
-   the findings too.
+6. **Keep talking.** The box at the bottom takes anything — a question about a finding, a request
+   for research that wasn't run, another document, a change to one you already have ("the backlog
+   is too vague, add acceptance criteria"), or a fact only you know ("support logged 1,200 calls
+   about this last quarter"). It works out which you meant. Revisions are versioned, and anything
+   you tell it feeds everything written afterwards.
 
 ## Demo mode vs live
 
@@ -73,7 +75,7 @@ npm run start
 - **A lens says it "couldn't run"** — the error under it names the cause. The common one is the
   model's answer being cut off at the token limit; the app now retries with more room and salvages
   any findings that completed, so this should be rare. If it persists, the token budgets are in
-  `lib/discovery/run.ts`. Other lenses are unaffected — **Research again** re-runs them all.
+  `lib/discovery/run.ts`. Other lenses are unaffected — ask it to run that one again.
 - **Discover takes a while** — the lenses run in parallel but they're real model calls, and the
   market lens searches the web first.
 - **Discoveries disappeared** — without `DATABASE_URL` they're in `.data/discoveries.json`. See
