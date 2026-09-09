@@ -36,7 +36,7 @@ connection string / URI.)*
 
 1. Go to **https://console.anthropic.com** → **API Keys** → create one.
 2. Copy it — that's your `ANTHROPIC_API_KEY`. Without it the app still runs, but
-   in demo mode (seed outputs).
+   in demo mode with clearly-labelled example findings.
 
 ## Step 3 — Deploy to Vercel
 
@@ -63,10 +63,10 @@ a login — username can be anything, password is the one you set.
 
 ## What each variable does
 
-- **`DATABASE_URL`** — turns on the Postgres store. Orchestrator sessions — the
-  plan, the evidence, the synthesis, the analyses, the decision and every
-  artifact — persist here and are shared across everyone. Without it, the app
-  falls back to a local file (fine for dev, lost on a host).
+- **`DATABASE_URL`** — turns on the Postgres store. Discoveries — the idea, the
+  research findings and every document generated from them — persist here and
+  are shared across everyone. Without it, the app falls back to a local file
+  (fine for dev, lost on a host).
 - **`ANTHROPIC_API_KEY`** — switches from demo seed outputs to real Claude
   output. The badge in the app shows "Live · Claude" when it's set.
 - **`APP_PASSWORD`** — gates the whole app behind one shared password. Leave
@@ -87,7 +87,7 @@ flow — make a change, `git push` — updates the live site in a couple of minu
 
 - **Auth**: replace the shared password with real accounts/SSO (e.g. Auth.js) so
   you know who did what. The password gate lives in `middleware.ts`.
-- **Per-user attribution**: stamp sessions with the real identity behind them so
-  you can see who asked what and which recommendations were acted on.
+- **Per-user attribution**: stamp discoveries with the real identity behind them
+  so you can see who explored what.
 - **Backups & migrations**: Neon/Supabase handle backups; add schema migrations
   if the data model grows (today tables are simple JSONB and self-create).

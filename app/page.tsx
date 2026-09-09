@@ -4,74 +4,73 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * The front door. One box.
+ * One box. Describe the product or feature, hit Discover.
  *
- * The PM should not have to know that eleven research capabilities, ninety
- * analysis methods and sixty output types exist, let alone orchestrate them.
- * They describe the product question; the orchestrator works out the package
- * and shows it back for approval on the next screen.
+ * The research checkboxes are pre-ticked with the four that matter for almost
+ * any idea — you can ignore them entirely and it works.
  */
 
-const TYPES = [
-  { id: "auto", label: "Auto-detect" },
-  { id: "problem", label: "Problem" },
-  { id: "question", label: "Question" },
-  { id: "idea", label: "Idea" },
-  { id: "solution", label: "Solution" },
-  { id: "decision", label: "Decision" },
-  { id: "requirement", label: "Requirement" },
-  { id: "transcript", label: "Transcript" },
-  { id: "data", label: "Data" },
-];
+interface LensMeta { id: string; name: string; icon: string; blurb: string; standard: boolean; web: boolean }
 
 const EXAMPLES = [
-  "Understand why onboarding conversion is dropping.",
-  "Should we build an AI concierge in the member app, or fix the cost-estimate flow first?",
-  "Members can't tell what a visit will cost before they go, so they call support or skip care.",
-  "Leadership wants a business case for opening the platform to third-party integrations.",
-];
-
-const LAYERS = [
-  { n: "1", name: "Research", text: "Eleven lenses — users, behaviour, defects, market, competitors, buyers, regulation, feasibility, operations, ecosystem, trends. Run in parallel." },
-  { n: "2", name: "Analysis", text: "The right method for the evidence you actually have — root cause, JTBD, funnel, five forces, RICE only when reach data exists." },
-  { n: "3", name: "Decision", text: "Evidence → insight → options → trade-offs → recommendation, with an honest confidence and the gaps named." },
-  { n: "4", name: "Generation", text: "PRD, backlog, roadmap, business case, exec summary — any number of artifacts from one body of evidence." },
+  "A way for members to see what a visit will cost before they book it.",
+  "An AI assistant in our support tool that drafts replies from past tickets.",
+  "Let customers manage their own subscription changes instead of calling us.",
 ];
 
 export default function Home() {
   const router = useRouter();
-  const [input, setInput] = useState("");
-  const [inputType, setInputType] = useState("auto");
+  const [idea, setIdea] = useState("");
+  const [kind, setKind] = useState<"feature" | "product">("feature");
+  const [lenses, setLenses] = useState<LensMeta[]>([]);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<"live" | "demo">("demo");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    fetch("/api/catalog")
+    fetch("/api/meta")
       .then((r) => r.json())
-      .then((d) => setMode(d.mode || "demo"))
+      .then((d) => {
+        setLenses(d.lenses || []);
+        setMode(d.mode || "demo");
+        setPicked(new Set((d.lenses || []).filter((l: LensMeta) => l.standard).map((l: LensMeta) => l.id)));
+      })
       .catch(() => {});
   }, []);
 
-  async function start() {
-    const text = input.trim();
+  function toggle(id: string) {
+    setPicked((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  async function discover() {
+    const text = idea.trim();
     if (!text) {
-      setError("Describe the product question first.");
-      taRef.current?.focus();
+      setError("Describe the product or feature first.");
+      ref.current?.focus();
+      return;
+    }
+    if (picked.size === 0) {
+      setError("Pick at least one thing to research.");
       return;
     }
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/session", {
+      const r = await fetch("/api/discovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: text, inputType }),
+        body: JSON.stringify({ idea: text, kind, lenses: [...picked] }),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Could not start.");
-      router.push(`/s/${j.session.id}`);
+      if (!r.ok) throw new Error(j.error || "Something went wrong.");
+      router.push(`/d/${j.discovery.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
       setBusy(false);
@@ -82,83 +81,71 @@ export default function Home() {
     <div className="entry">
       <div className="entry-inner">
         <div className="entry-hero">
-          <div className="eyebrow">
-            <span className="logo-mark">◈</span> Product Intelligence Orchestrator
-          </div>
-          <h1 className="entry-title">
-            Ask a product question.<br />Get an evidence-based decision.
-          </h1>
+          <h1 className="entry-title">What do you want to discover?</h1>
           <p className="entry-sub">
-            Not a research assistant and not a document generator. Describe the problem, question or
-            decision in front of you — the orchestrator works out what research is needed, what
-            analysis to apply, what the evidence actually supports, and which artifact moves things
-            forward.
+            Describe a product or a feature. We&apos;ll research it — users, market, bugs, process —
+            and then write you a use case doc, a PRD, a backlog or a business case.
           </p>
         </div>
 
         <div className="composer-card">
           <textarea
-            ref={taRef}
+            ref={ref}
             className="composer-input"
-            placeholder="e.g. Understand why onboarding conversion is dropping…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") start();
-            }}
-            rows={5}
+            placeholder="e.g. A way for members to see what a visit will cost before they book it…"
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") discover(); }}
+            rows={4}
           />
 
-          <div className="type-row">
-            <span className="type-label">This is a</span>
-            {TYPES.map((t) => (
-              <button
-                key={t.id}
-                className={`type-chip ${inputType === t.id ? "on" : ""}`}
-                onClick={() => setInputType(t.id)}
-                type="button"
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="row">
+            <span className="row-label">This is a</span>
+            <div className="seg">
+              <button type="button" className={kind === "feature" ? "on" : ""} onClick={() => setKind("feature")}>Feature</button>
+              <button type="button" className={kind === "product" ? "on" : ""} onClick={() => setKind("product")}>Product</button>
+            </div>
+          </div>
+
+          <div className="row wrap">
+            <span className="row-label">Research</span>
+            <div className="lens-chips">
+              {lenses.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  className={`lens-chip ${picked.has(l.id) ? "on" : ""}`}
+                  onClick={() => toggle(l.id)}
+                  title={l.blurb}
+                >
+                  <span className="lc-check">{picked.has(l.id) ? "✓" : "＋"}</span>
+                  <span className="lc-ico">{l.icon}</span>
+                  {l.name}
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <div className="composer-error">{error}</div>}
 
           <div className="composer-actions">
-            <span className="mode-note">
-              <span className={`badge ${mode}`}>
-                <span className="dot" />
-                {mode === "live" ? "Live · Claude" : "Demo mode"}
-              </span>
-              <span className="muted">
-                {mode === "live"
-                  ? "Research runs live, with web search on the outward-facing lenses."
-                  : "No API key — the orchestrator will show its plan and report evidence gaps rather than invent findings."}
-              </span>
+            <span className={`badge ${mode}`}>
+              <span className="dot" />
+              {mode === "live" ? "Live · Claude" : "Demo mode — example findings only"}
             </span>
-            <button className="btn-go" onClick={start} disabled={busy} type="button">
-              {busy ? "Reading the question…" : "Start →"}
+            <button className="btn-go" onClick={discover} disabled={busy} type="button">
+              {busy ? "Researching…" : "Discover →"}
             </button>
           </div>
+          {busy && <p className="busy-note">Running {picked.size} research {picked.size === 1 ? "lens" : "lenses"}. This takes about a minute.</p>}
         </div>
 
         <div className="entry-examples">
           <span className="ex-label">Try</span>
           {EXAMPLES.map((ex, i) => (
-            <button key={i} className="ex-chip" onClick={() => setInput(ex)} type="button">
-              {ex.length > 62 ? ex.slice(0, 59) + "…" : ex}
+            <button key={i} className="ex-chip" onClick={() => setIdea(ex)} type="button">
+              {ex.length > 58 ? ex.slice(0, 55) + "…" : ex}
             </button>
-          ))}
-        </div>
-
-        <div className="layer-strip">
-          {LAYERS.map((l) => (
-            <div key={l.n} className="layer-card">
-              <span className="layer-n">{l.n}</span>
-              <span className="layer-name">{l.name}</span>
-              <span className="layer-text">{l.text}</span>
-            </div>
           ))}
         </div>
       </div>

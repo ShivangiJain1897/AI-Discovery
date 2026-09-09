@@ -2,7 +2,7 @@
   "name": "ai-discovery",
   "version": "0.1.0",
   "private": true,
-  "description": "Product Intelligence Orchestrator for Product Managers \u2014 moves a product question through research, evidence, analysis, insight, decision and artifact, with explicit evidence discipline at every step.",
+  "description": "Describe a product or feature. AI researches it \u2014 users, market, bugs, process \u2014 then writes you a use case doc, a PRD, a backlog or a business case.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
