@@ -1,142 +1,194 @@
-# Discovery Studio
+# Product Intelligence Orchestrator
 
-A chat-driven, human-in-the-loop **product discovery** workflow. Drop in a problem, an idea, a
-requirement, or a raw transcript, and a team of AI agents figures out what they need to know,
-surfaces findings you validate, and turns it into a **PRD or backlog you own**.
+A working tool for Product Managers that moves a real product question through the full chain:
 
-The whole thing is one loop, born from a single chat box:
+**Problem / Question → Research → Evidence → Analysis → Insight → Decision → Product Artifact**
 
-**Say anything → agents intake what they need → you validate the findings → generate.**
-
-## The flow
-
-1. **Chat entry.** Type a problem/idea/solution/requirement or paste a transcript. Tag the input
-   type or let the **orchestrator auto-detect** it. Pick which agents work the case.
-2. **The agent team.** Six lenses, each with its own intake and findings:
-   - 🧑‍🔬 **User Research** — who the users are, their jobs, needs, and pains.
-   - ⚙️ **Process Mining** — the current process, handoffs, manual steps, bottlenecks.
-   - 🐞 **Defect Detection** — current defects and reliability issues in the experience.
-   - 📈 **Market & Competitive** — market framing, competitors, shifting expectations.
-   - ⚖️ **Regulatory & Environment** — government regulations, PHI, compliance (HIPAA/CMS-aware).
-   - 🎯 **Business Priority** — business goals, value, effort, strategic priority.
-3. **Per-agent intake.** Each agent needs a few questions answered — almost like a form. The input
-   (especially a transcript) **auto-populates** what it can. A **side panel** shows what got
-   **captured** vs. what's **still needed**, and prompts you to fill the gaps.
-4. **Sectioned findings.** Every agent returns a section of specific findings.
-5. **Validate & augment.** Mark each finding **Right** or **Off**, and add "also consider…" notes.
-   Your validation shapes what gets generated.
-6. **Generate.** Turn the validated findings into a **PRD** or a **prioritized backlog**.
-
-It runs out of the box in **demo mode** (deterministic, illustrative outputs, no API key) and
-switches to **live outputs powered by Claude** the moment you add an API key. In healthcare/payer
-contexts (member, claim, provider, PHI…) the agents automatically pull in the right domain and
-regulatory framing.
-
-> The earlier Intake tracker was split into its own repo (`use-case-tracker`) for a separate team.
-
-**Deploying it for a few people?** See [`DEPLOY.md`](./DEPLOY.md) — Vercel + a hosted Postgres +
-an optional shared password, ~15 minutes, no code changes.
-
-> New here? [`SETUP.md`](./SETUP.md) has step-by-step run instructions and troubleshooting.
-
-> Want to shape the agents — their questions, personas, and outputs? See
-> [`docs/TUNING-AGENTS.md`](./docs/TUNING-AGENTS.md).
+It is deliberately *not* a research assistant, an analyst, or a document generator. Those are three
+different jobs and conflating them is why most "AI for PM" tools produce confident, useless prose.
+This app keeps them separate and orchestrates across them.
 
 ---
 
-## Quick start
+## The four layers
+
+Every request is treated as potentially containing four separable layers. The app never confuses
+them — competitive research is Layer 1, a SWOT is Layer 2, "prioritize A over B" is Layer 3, a PRD
+is Layer 4.
+
+| Layer | Question it answers | In the code |
+| --- | --- | --- |
+| **1 · Research** | What evidence needs to be discovered? | `lib/orchestrator/catalog/research.ts`, `research.ts` |
+| **2 · Analysis** | What reasoning applies to that evidence? | `lib/orchestrator/catalog/analysis.ts`, `analysis.ts` |
+| **3 · Decision** | What recommendation should emerge? | `lib/orchestrator/decision.ts` |
+| **4 · Generation** | What artifact moves the org forward? | `lib/orchestrator/catalog/outputs.ts`, `generate.ts` |
+
+### Layer 1 — eleven research capabilities
+
+Run as **parallel evidence streams**. The PM never has to know which applies; the orchestrator
+recommends a package and explains why each lens is in it.
+
+| | Lens | Investigates |
+| --- | --- | --- |
+| A | User & Voice of Customer | Jobs, needs, pains, workarounds, adoption barriers. Distinguishes primary from secondary research; never treats stated preference as behaviour. |
+| B | Product Usage & Behaviour | Activation, funnels, retention, churn, drop-off. Validates or contradicts what customers *say*. |
+| C | Defect, Quality & Support | Clusters issues and classifies each as defect / usability / missing capability / process / data / training. |
+| D | Market & Category | Size, growth, segments. Separates observed evidence, analyst estimates and assumptions. **Live web research.** |
+| E | Competitive & Alternatives | Every alternative including manual workarounds and doing nothing — and *why* customers pick each. **Live web research.** |
+| F | Buyer & Commercial | Economic buyer, buying criteria, willingness to pay. Treats user ≠ buyer ≠ decision maker. |
+| G | Domain & Regulatory | Names the specific instrument, jurisdiction and product consequence. **Live web research.** |
+| H | Technology & Feasibility | Architecture, data availability, build-vs-buy; for AI: grounding, hallucination, HITL, latency, cost. |
+| I | Operational & Workflow | Current-state flow, handoffs, bottlenecks. Separates a **product** problem from a **process** problem. |
+| J | Ecosystem & Integration | Platforms, partners, channels, and what each dependency risks. **Live web research.** |
+| K | Trend & Strategic Foresight | Splits current signals from speculative scenarios; every signal carries a "so what, by when". **Live web research.** |
+
+Each stream returns the same six-part contract — key evidence, findings, patterns, contradictions,
+gaps, implications — so they can be synthesized rather than concatenated.
+
+### Layer 2 — the analytical method catalog
+
+67 methods across 16 families (problem & root cause, customer, voice of customer, product
+performance, quality, market, competitive, strategy, opportunity, prioritization, business &
+financial, experimentation, risk, delivery, AI product, foresight).
+
+Every method declares `evidenceNeeded`, and the orchestrator picks against it. **Prioritization is
+never chosen by popularity**: RICE requires real reach data; without it the plan proposes ICE or
+impact-effort and says why in the plan card.
+
+### Layer 3 — the decision
+
+`Evidence → Insight → Options → Trade-offs → Recommendation → Confidence → Evidence gaps.`
+
+A do-nothing option is always on the table and costed. Confidence is reported honestly — a
+Low-confidence "go and find this out first" is a legitimate output, and the app will give you one
+rather than manufacture certainty.
+
+### Layer 4 — the artifacts
+
+55 outputs across 15 families: research plans and interview guides, problem statements, personas,
+JTBD maps, product strategy, competitor matrices, battlecards, recommendation memos, business cases,
+PRDs, backlogs, RICE assessments, roadmaps, experiment briefs, KPI trees, RCAs, launch plans, RACIs,
+executive summaries, slide storylines.
+
+**Generating a second format never re-runs research.** Every artifact reads from one session
+dossier (`lib/orchestrator/dossier.ts`) — that rule is enforced in code, not just in the prompt.
+
+---
+
+## How it feels to use
+
+You type a product question. You get back:
+
+> **I understand the objective as** …
+> **Recommended research** — the lenses, each marked required or optional, each with a reason
+> **Recommended analysis** — the methods, matched to the evidence you'll actually have
+> **Recommended output** — what you'll be able to hand someone
+> **Depth** · **Audience**
+
+Accept it, or change any part — every catalog is a click away. Clarifying questions appear only
+where a different answer would change the work (usually zero or one), and answering them re-plans
+the package. Then research runs, synthesis runs across the streams, analyses apply, a decision gets
+made, and artifacts come out — all in one thread, all from the same evidence.
+
+## Evidence discipline
+
+The single rule that makes the output trustworthy, in `lib/orchestrator/universal.ts` and inherited
+by every prompt in the app:
+
+- Every statement is classified as **fact / inference / assumption / gap / contradiction**.
+- Every finding carries a strength: **Strong / Moderate / Directional / Hypothesis**.
+- Nothing is invented — no market numbers, quotes, competitor capabilities, prices or metrics. Where
+  evidence is missing, the app says so and names what would provide it.
+- Claims are **triangulated** across streams; contradictions are surfaced, never resolved by
+  silently preferring the convenient lens.
+- The orchestrator **challenges** the PM's framing rather than validating it.
+
+This is why **demo mode does not fabricate findings**. With no API key the app shows the real plan,
+runs the real structure, and reports every lens as an evidence gap — because inventing a plausible
+finding is the worst failure this system can have.
+
+---
+
+## Run it
 
 ```bash
 npm install
 npm run dev          # http://localhost:3000
 ```
 
-Type a problem or paste a transcript, pick your agents, click **Run discovery**. Works with **no
-API key**.
-
-### Enable live outputs (Claude)
+Works with **no API key** (demo mode). For live research and generation:
 
 ```bash
-cp .env.example .env.local
-# set ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...
+# optional: ANTHROPIC_MODEL (default claude-sonnet-5)
+# optional: ANTHROPIC_WORKSPACE_ID for an org-level key
 ```
 
-The badge flips from **Demo mode** to **Live · Claude**, and classification, intake extraction,
-findings, and generated documents are all produced by Claude from your actual input. Override the
-model with `ANTHROPIC_MODEL`.
+`GET /api/health` makes a real call to Claude and tells you truthfully whether the live path works —
+the badge only checks that a key exists.
 
----
-
-## Architecture
+## Structure
 
 ```
 app/
-  page.tsx                     Chat entry: input + type + agent picker → create workflow
-  w/[id]/page.tsx              Workflow view: stepper (Intake → Findings → Generate),
-                               intake side-drawer (captured vs needed), findings with
-                               Right/Off validation + augment notes, PRD/backlog output
-  components/Shell.tsx         Constant sidebar: New discovery + history + mode badge
+  page.tsx                          One box: the product question
+  s/[id]/page.tsx                   The orchestration thread
+  s/[id]/PlanCard.tsx               "I understand the objective as…" + the three pickers
+  components/Doc.tsx                Section rendering + Markdown download
   api/
-    agents/route.ts            Agent catalog (no system prompts) + mode
-    workflow/route.ts          GET list / POST create (classify + suggest agents)
-    workflow/[id]/route.ts     GET / PATCH (intake, verdicts, notes, stage) / DELETE
-    workflow/[id]/select/route.ts   Set selected agents + auto-extract each one's intake
-    workflow/[id]/run/route.ts      Run selected agents → findings
-    workflow/[id]/generate/route.ts Generate PRD / backlog from validated findings
-  globals.css                  Futuristic light design system
+    catalog/route.ts                All four catalogs + depth/audience + mode
+    session/route.ts                POST: classify → plan.  GET: history
+    session/[id]/route.ts           GET / PATCH (notes, per-lens evidence) / DELETE
+    session/[id]/plan/route.ts      Reshape the package; answer clarifications; re-plan
+    session/[id]/research/route.ts  Run the streams in parallel
+    session/[id]/synthesis/route.ts Synthesize ACROSS the streams
+    session/[id]/analysis/route.ts  Apply analysis methods to existing evidence
+    session/[id]/decision/route.ts  Options → recommendation → confidence
+    session/[id]/generate/route.ts  Artifact from the dossier
+    health/route.ts                 Truthful live-path diagnostic
 
 lib/
-  workflow/
-    types.ts                   Workflow, AgentState, IntakeField, Finding, GeneratedOutput
-    agents.ts                  The six agents: intake questions, extractIntake, runAgent
-    orchestrator.ts            classifyInput (auto-detect type) + suggestAgents
-    generate.ts                PRD / backlog from validated (non-rejected) findings + notes
-    store.ts                   Persistence via the storage collection abstraction
-  llm/
-    provider.ts                LlmProvider interface + auto-selection (live vs demo)
-    anthropic.ts               Live provider (Claude)
-    mock.ts                    Demo provider (deterministic generators do the work)
-  storage/
-    collection.ts              Swappable persistence (file store / Postgres)
+  orchestrator/
+    types.ts          The session model
+    universal.ts      Evidence discipline inherited by every prompt
+    plan.ts           Steps 1-4 + 10: read the question, recommend the package
+    research.ts       Layer 1: parallel evidence streams
+    synthesis.ts      Steps 5-6: cross-stream relationships → insights → opportunities
+    analysis.ts       Layer 2: apply one method
+    decision.ts       Layer 3: the call
+    generate.ts       Layer 4: the artifact
+    dossier.ts        The one source of accumulated evidence
+    catalog/
+      research.ts     11 capabilities
+      analysis.ts     67 methods in 16 families
+      outputs.ts      55 outputs in 15 families
+      depth.ts        5 depth modes, 9 audiences
+  llm/                Provider abstraction (Claude live, demo fallback)
+  storage/            Postgres when DATABASE_URL is set, JSON file otherwise
 ```
 
-**Design choices that make this extensible:**
+## Design decisions
 
-- **One workflow object.** Everything a user does — input type, per-agent intake, findings
-  verdicts, augment notes, generated outputs — lives on the `Workflow`, so the flow is resumable
-  and auditable, and each API call is a small mutation on it.
-- **One provider interface.** Agents never touch the SDK. Live vs. demo is a single branch on
-  `provider.mode`; demo mode uses deterministic generators so the whole loop works with no key.
-- **Add an agent in one place.** A new lens is one entry in `AGENTS` (name, blurb, intake
-  questions, system persona) — extraction, running, and the UI pick it up automatically.
+- **The four layers are separate types, not one blob.** A research capability, an analysis method
+  and an output are different things with different requirements, and the code says so.
+- **One dossier, many artifacts.** `dossier.ts` is the only input to analysis, decision and
+  generation, which is what makes "never re-research for a second format" true rather than aspirational.
+- **Catalogs are data.** Adding a lens, a method or an output is one entry in a catalog file — the
+  planner, the API and the UI all pick it up. See [`docs/TUNING.md`](./docs/TUNING.md).
+- **The plan is editable and explains itself.** Every recommended item carries the reason it's
+  there; the PM can add anything from the full catalog, and items they add are labelled as theirs.
+- **Failure degrades honestly.** Every live call has a fallback that reports what is missing rather
+  than one that invents a substitute.
 
----
+## Storage
 
-## Data store
+`DATABASE_URL` set → Postgres (`aid_sessions`, JSONB). Otherwise `.data/sessions.json`.
+Switching backends is config, not code.
 
-All persistence goes through one abstraction (`lib/storage/collection.ts`):
+## Where this could go next
 
-- **Local dev:** no setup — data persists to `.data/*.json`.
-- **Production:** set `DATABASE_URL` and it uses **Postgres** (tables auto-create; each row a JSONB
-  document). This is what makes the app deployable — a cloud host's filesystem is ephemeral.
-
-Collection: `workflows` (one document per discovery).
-
-## Roadmap to production
-
-1. **Ground the research agents** — give User Research / Market / Competitive real retrieval with
-   citations instead of reasoning from the model's knowledge.
-2. **Connect Defect Detection to production** — telemetry, error tracking, session replay for real
-   defects instead of anticipated ones.
-3. **Streaming** — stream each agent's findings as it completes (SSE) instead of running as a batch.
-4. **Export** — push generated PRDs/backlogs to Jira/Confluence/Docs.
-5. **Trust & compliance** — provenance on every finding, PHI handling (HIPAA), audit logs, RBAC.
-
-## Notes
-
-- **Stack:** Next.js (App Router) + React + TypeScript, hand-written CSS, optional
-  `@anthropic-ai/sdk`, `pg` for Postgres. Storage swappable via `DATABASE_URL`.
-- **Auth:** optional shared-password gate via `APP_PASSWORD` (`middleware.ts`); swap for real SSO
-  when productionizing.
-- **Security:** pinned to a patched Next.js 15.x. `npm audit` may still flag `sharp`/libvips CVEs —
-  a transitive **optional** dependency this app doesn't use.
+1. **Stream results as they complete** (SSE) instead of awaiting the whole parallel batch.
+2. **Connect real evidence sources** — Jira, Zendesk, Amplitude, the data warehouse — so Layers B
+   and C run on actual data instead of reporting gaps.
+3. **Persist evidence across sessions** so a second question about the same product starts warm.
+4. **Close the loop**: record which recommendations were taken and what happened.

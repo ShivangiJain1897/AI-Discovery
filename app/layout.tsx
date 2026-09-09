@@ -3,9 +3,9 @@ import "./globals.css";
 import Shell from "./components/Shell";
 
 export const metadata: Metadata = {
-  title: "Discovery Studio",
+  title: "Product Intelligence Orchestrator",
   description:
-    "Turn a problem, idea, or transcript into product discovery: a team of AI agents (user research, process, defects, market, regulatory, business priority) intake what they need, surface findings you validate, and generate a PRD or backlog you own.",
+    "Move from product question to research, evidence, analysis, insight, decision and artifact. Eleven research lenses, a full analytical method catalog, an explicit decision layer, and any artifact you need — generated from one body of evidence.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

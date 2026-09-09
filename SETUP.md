@@ -1,19 +1,18 @@
 # Setup & Run
 
-Get the AI Discovery pilot running on your machine in a couple of minutes.
+Get the Product Intelligence Orchestrator running locally in a couple of minutes.
 
 ## Prerequisites
 
-- **Node.js 18+** (20+ recommended) and **npm** — check with `node -v`
+- **Node.js 20+** and **npm** — check with `node -v`
 - **git**
-- No database, no API key required to start (it runs in demo mode + real reviews)
+- No database and no API key required to start
 
 ## 1. Get the code
 
 ```bash
 git clone https://github.com/ShivangiJain1897/AI-Discovery.git
 cd AI-Discovery
-git checkout claude/ai-discovery-payer-platform-tjx1ri
 ```
 
 ## 2. Install & run
@@ -29,51 +28,56 @@ Open **http://localhost:3000**.
 
 ## 3. Use it
 
-1. **Paste your input** — a feature idea, a written requirement, or a meeting transcript.
-   (Or click **Try an example** to prefill one.)
-2. (Optional) Set the input type and add **product context**, e.g. `Medicare Advantage member app`.
-3. **Choose what to generate** — tick any capabilities: PRD, Detailed Requirements, Market /
-   Competitive / Feedback research, Process & Domain Analysis, Defect Foresight, or Business Value
-   (quantifiable / qualitative).
-4. Click **Generate**.
+1. **Type a product question** — a problem, an open question, an idea, a proposed solution, a
+   decision between options, a requirement, or a pasted transcript. Or click one of the examples.
+2. **Read the plan.** The orchestrator states back the objective and the decision behind it, lists
+   the assumptions it made, and recommends research lenses, analysis methods and outputs — each with
+   the reason it's there. Change anything you disagree with; every catalog is one click away under
+   *Change*.
+3. **Answer any clarifying questions** — there will usually be zero or one, and only where the
+   answer would change the work. Answering them re-plans the package.
+4. **Run the research streams.** They run in parallel; each returns findings graded
+   Strong / Moderate / Directional / Hypothesis, plus its evidence, contradictions and gaps.
+5. **Synthesize across the streams.** This is the step that finds what no single lens can see — a
+   complaint corroborated by behaviour, an opportunity contradicted by willingness to pay, a defect
+   cluster explaining low adoption.
+6. **Apply the analysis methods**, then **make the decision** (options, trade-offs, recommendation,
+   confidence, gaps).
+7. **Generate artifacts** — as many as you like. None of them re-runs research.
 
-You'll get one clean output card per capability — with sections, bullets, and tables — plus your
-input echoed for reference.
+Anything you type into the box at the bottom is carried into every stream, analysis and artifact
+produced afterwards.
 
-Everything works with **no API key** (demo mode returns strong illustrative templates with your
-input woven in). Add a key for live, Claude-generated analysis.
+## 4. Demo mode vs live
 
-## 4. Prove the "real data" grounding (no UI needed)
+With **no API key** the app is fully navigable: the plan, the stage flow and the document structure
+are all real. What it will *not* do is invent findings — every lens reports its evidence as a gap and
+says what would fill it. That is deliberate; fabricating a plausible finding is the failure mode this
+system exists to prevent.
 
-Needs normal outbound internet (it calls Apple's public `itunes.apple.com` endpoints):
-
-```bash
-npm run reviews:probe -- "Aetna Health"
-# also works with an App Store URL or a numeric app id
-```
-
-Prints the resolved app, how many real reviews were fetched, and the grounded defect signals
-with quoted, linked citations.
-
-Run the offline tests (validate parsing against Apple's real schema + clustering):
-
-```bash
-npm run test:grounding
-```
-
-## 5. (Optional) Enable live Claude agents
+To run live:
 
 ```bash
 cp .env.example .env.local
-# edit .env.local and set:
-#   ANTHROPIC_API_KEY=sk-ant-...
+# set ANTHROPIC_API_KEY=sk-ant-...
+# optional: ANTHROPIC_MODEL=claude-sonnet-5
+# optional: ANTHROPIC_WORKSPACE_ID=...   (only needed for an org-level key)
 npm run dev
 ```
 
-The badge in the top-right flips from **Demo mode** to **Live · Claude**. The agents now reason
-with Claude instead of seed data; the Defect agent still cites real reviews.
+The badge flips from **Demo mode** to **Live · Claude**. The outward-facing lenses (market,
+competitive, regulatory, ecosystem, trends) also start doing live web research and citing sources.
 
-You can also override the model: set `ANTHROPIC_MODEL` in `.env.local`.
+### Confirm the live path actually works
+
+The badge only checks that a key *exists*. To confirm Claude is really responding:
+
+```
+GET http://localhost:3000/api/health
+```
+
+It makes a real call and reports `liveCallOk` plus a plain-English verdict. If a key is present but
+invalid, this is how you find out — the app otherwise degrades quietly to demo behaviour.
 
 ## Build for production
 
@@ -84,15 +88,16 @@ npm run start        # serves the optimized build on http://localhost:3000
 
 ## Troubleshooting
 
-- **`itunes.apple.com` blocked / reviews not loading** — some corporate or CI networks block it.
-  The Defect agent falls back to clearly-labeled generated examples and says so; the rest of the
-  app is unaffected. On a normal network it fetches real data.
 - **Node version errors** — upgrade to Node 20+.
-- **Port conflict** — use `PORT=<n> npm run dev`.
-- **Nothing appears after "Run discovery"** — the run executes server-side and can take a few
-  seconds; the page polls and updates when it completes. Check the terminal for errors.
+- **Port conflict** — `PORT=<n> npm run dev`.
+- **Everything reports "not run" / "no evidence"** — you're in demo mode, or your key is invalid.
+  Check `/api/health`.
+- **A run takes a while** — research streams run in parallel but are real model calls; the deeper
+  the depth mode, the longer. The thread updates when the batch completes.
+- **Sessions disappeared** — with no `DATABASE_URL` they live in `.data/sessions.json`. See
+  [`DEPLOY.md`](./DEPLOY.md) for Postgres.
 
 ## Where things live
 
-See [`README.md`](./README.md) for the architecture, the agent design, the grounding approach,
-and the roadmap to production.
+See [`README.md`](./README.md) for the four-layer architecture and
+[`docs/TUNING.md`](./docs/TUNING.md) for changing the capabilities, methods, outputs and prompts.

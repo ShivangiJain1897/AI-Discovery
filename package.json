@@ -2,14 +2,12 @@
   "name": "ai-discovery",
   "version": "0.1.0",
   "private": true,
-  "description": "AI Discovery platform for payer organizations — reimagining product discovery across value chains with a team of specialized AI agents.",
+  "description": "Product Intelligence Orchestrator for Product Managers \u2014 moves a product question through research, evidence, analysis, insight, decision and artifact, with explicit evidence discipline at every step.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "reviews:probe": "node scripts/probe-reviews.ts",
-    "test:grounding": "node scripts/test-grounding.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
