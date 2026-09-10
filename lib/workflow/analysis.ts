@@ -50,6 +50,13 @@ export const ANALYSIS_FRAMEWORKS: AnalysisFramework[] = [
     ask: 'Sections: "Opportunity Portfolio" as a table ["Opportunity (HMW…)","User value","Business value","Evidence","Confidence"]; "Top opportunities"; "Quick wins vs bets".',
   },
   {
+    id: "use_case",
+    name: "Use Case Analysis",
+    blurb: "Turn an idea into concrete use cases — actors, triggers, scenarios, and the one to pursue first.",
+    method: "Use-case decomposition",
+    ask: 'The input is an idea/solution; enumerate and detail the USE CASES it enables. Sections: "Use Case Landscape" as a table ["Use case","Actor / persona","Trigger / context","Goal / outcome","Value (H/M/L)"] — list the distinct use cases the idea supports; "Primary Use Case" — the highest-value one, detailed with preconditions, a numbered main flow, alternate/exception flows, and success criteria; "Prioritized Use Cases" — ranked with rationale (value × feasibility × evidence); "What to validate first". Ground use cases in the research; mark speculative ones as hypotheses and never invent adoption or usage numbers.',
+  },
+  {
     id: "prioritization",
     name: "Prioritization",
     blurb: "What to do first — scored and bucketed Now / Next / Later.",
