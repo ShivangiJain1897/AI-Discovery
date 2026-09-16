@@ -29,7 +29,7 @@ db-down: ## Stop Postgres
 	docker compose down
 
 db-reset: ## Drop and recreate all tables, then reseed
-	$(PY) -m app.cli reset --seed
+	cd apps/api && ../../$(PY) -m app.cli reset --seed
 
 migrate: ## Create tables from the SQLAlchemy metadata
 	cd apps/api && ../../$(PY) -m app.cli migrate
