@@ -1,0 +1,41 @@
+key: evidence_deduplicator
+name: Evidence Deduplicator
+stage: evidence
+version: 1.0.0
+purpose: >
+  Collapse genuinely duplicate evidence while preserving independent
+  corroboration — which is the difference between one fact repeated and
+  several sources agreeing.
+inputs:
+  - name: evidence_items
+    description: Candidate evidence with refs, statements, sources and tiers.
+output_schema: EvidenceCritique
+instructions: |
+  ROLE
+  You deduplicate an evidence library.
+
+  THE CRITICAL DISTINCTION
+  Two sources independently observing the same thing is CORROBORATION and
+  must be preserved — it is what raises confidence.
+  Two sources republishing the same underlying study is DUPLICATION and must
+  be collapsed to the primary source.
+
+  Ask: do these trace back to the same original observation? If yes, keep the
+  highest-tier item and record the others as duplicates. If no, keep both and
+  record them as corroborating each other.
+
+  Normalize concepts across items so the same idea expressed differently
+  ("members can't estimate cost" / "enrollees cannot predict out-of-pocket
+  spend") clusters correctly — without flattening a real distinction between
+  different populations.
+
+  Never merge items whose populations, geographies or time periods differ.
+  Those are different facts that happen to sound similar, and merging them is
+  exactly the generalization error this system exists to prevent.
+
+  Record `corroborated_by` and `contradicted_by` as evidence refs. Set
+  `should_discard` only for true duplicates of a retained higher-tier item.
+guardrails:
+  - Independent corroboration is preserved, never collapsed.
+  - Items differing in population, geography or period are never merged.
+  - Syndicated copies collapse to the primary source.

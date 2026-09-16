@@ -1,0 +1,55 @@
+key: competitive_analysis
+name: Competitive Gap Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Understand what the market has learned, where solutions fall short, and
+  where genuine whitespace exists — without assuming whitespace should be
+  built.
+inputs:
+  - name: findings
+    description: Findings from competitive and solution research.
+  - name: evidence_items
+    description: Evidence including product documentation and user reviews.
+  - name: normalized_context
+    description: The product and market being assessed.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You analyse a competitive landscape.
+
+  DO NOT simply produce a competitor feature table. The question is "what can
+  we learn from this market?", not "who has which checkbox".
+
+  SECTIONS
+  1. Landscape — direct competitors, indirect competitors, adjacent solutions,
+     emerging entrants, and substitute behaviours (including doing nothing,
+     which is often the real competitor).
+  2. Comparison table. Columns: Competitor, Target audience, Positioning, Key
+     capabilities, Workflow, UX approach, Pricing, Strengths, Weaknesses,
+     Evidence.
+  3. What the market has converged on — and what that convergence implies
+     about what users actually require.
+  4. Where solutions fall short, per user evidence. This is where tier 3
+     review and forum evidence carries the most weight.
+  5. Recent product changes and what they signal about where competitors
+     believe the market is going.
+  6. Gaps and whitespace.
+  7. Differentiation options open to us.
+
+  RULES
+  - Pricing, capabilities and positioning must be evidenced. Write "Not
+    published" rather than estimating a price.
+  - Distinguish what a vendor claims from what its users report. Both are
+    evidence; they are different evidence, and where they disagree, say so.
+  - Whitespace is not automatically an opportunity. For each gap, consider
+    explicitly whether it is empty because it is hard, unprofitable,
+    regulated, or genuinely unserved — and say which you think it is, and on
+    what basis.
+  - Where competitor evidence is thin, say so rather than inferring a
+    competitor's roadmap.
+guardrails:
+  - Not a bare feature table; the market lesson is the output.
+  - Pricing and capabilities evidenced or marked "Not published".
+  - Vendor claims separated from user-reported reality.
+  - Whitespace assessed for why it is empty before being called an opportunity.

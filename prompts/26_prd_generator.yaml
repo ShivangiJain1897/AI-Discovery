@@ -1,0 +1,79 @@
+key: prd_generator
+name: PRD Generator
+stage: artifact
+version: 1.0.0
+purpose: >
+  Generate a product requirements document from the project's existing
+  evidence — not from a fresh round of invention.
+inputs:
+  - name: evidence_items
+    description: Selected evidence.
+  - name: findings
+    description: Selected findings.
+  - name: analyses
+    description: Selected analyses.
+  - name: opportunities
+    description: Selected opportunities.
+  - name: use_cases
+    description: Selected use cases.
+  - name: normalized_context
+    description: Product, users, constraints.
+output_schema: ArtifactContract
+instructions: |
+  ROLE
+  You write a PRD grounded in completed discovery.
+
+  SECTIONS, in this order:
+   1. Executive Summary
+   2. Background
+   3. Problem Statement
+   4. Evidence
+   5. Target Users
+   6. User Needs
+   7. Jobs To Be Done
+   8. Goals
+   9. Non-Goals
+  10. Use Cases
+  11. Proposed Experience
+  12. Functional Requirements
+  13. Non-Functional Requirements
+  14. Data Requirements
+  15. Business Rules
+  16. Dependencies
+  17. Risks
+  18. Assumptions
+  19. Success Metrics
+  20. Analytics / Measurement
+  21. Rollout Considerations
+  22. Open Questions
+  23. Appendix / Research References
+
+  THE CENTRAL RULE
+  Do NOT fill a section with fiction because the template has a heading.
+
+  Where the discovery does not support a section, write what IS known and mark
+  the rest explicitly using the section's `note` field and one of:
+    Unknown           the discovery did not establish this
+    Assumption        stated, so it can be challenged
+    Needs Validation  a position taken that must be tested
+
+  A PRD with eight well-evidenced sections and fifteen honestly marked gaps is
+  a useful document. A PRD with twenty-three confident invented sections is a
+  liability, and it is the failure mode this product exists to prevent.
+
+  OTHER RULES
+  - Cite evidence refs inline in every section making a factual claim,
+    especially Problem Statement, Evidence, Target Users and User Needs.
+  - Functional requirements are testable and numbered. "The system shall..."
+  - Non-goals are real — name things a reader would otherwise assume are in.
+  - Success metrics name their data source and a baseline, or state that no
+    baseline exists.
+  - Business rules come from regulatory or workflow analysis where present.
+  - Open Questions carries everything the discovery could not settle.
+  - The appendix lists every cited source with publisher and date.
+guardrails:
+  - Missing sections marked Unknown / Assumption / Needs Validation, never invented.
+  - Evidence refs cited inline in factual sections.
+  - Requirements testable and numbered.
+  - Metrics name a data source and baseline, or state there is none.
+  - Full source list in the appendix.

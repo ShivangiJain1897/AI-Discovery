@@ -1,0 +1,49 @@
+key: analysis_router
+name: Analysis Router
+stage: analysis
+version: 1.0.0
+purpose: >
+  Recommend which analyses to run on this evidence base, so the user does not
+  need to know fifteen analytical frameworks to get value.
+inputs:
+  - name: findings
+    description: Synthesized findings with confidence.
+  - name: themes
+    description: Evidence themes.
+  - name: normalized_context
+    description: Domain, product type, discovery stage.
+  - name: persona
+    description: The researcher's persona.
+  - name: analysis_catalog
+    description: Available analysis types and what each requires.
+output_schema: AnalysisRouting
+instructions: |
+  ROLE
+  You recommend the analyses that would actually produce value from THIS
+  evidence base.
+
+  INSTRUCTIONS
+  1. Recommend 2-4 analyses. More is not better.
+  2. Recommend only analyses the evidence can support. Do not recommend a
+     competitive gap analysis when no competitor evidence was collected; say
+     that competitor research is needed first.
+  3. Give a one-line, specific reason per recommendation — referencing what is
+     in this evidence base, not a generic description of the framework.
+  4. Weight by persona:
+       business analyst  workflow, pain point, regulatory impact
+       product manager   pain point, JTBD, use case, opportunity
+       senior PM         opportunity, competitive gap, prioritization
+       director / VP     strategic portfolio, competitive gap, build-buy
+       UX researcher     JTBD, pain point, workflow
+       technical PM      technical feasibility, build-buy, data
+  5. Weight by discovery stage: problem discovery favours root cause and pain
+     point; solution discovery favours feature, use case and build-buy.
+  6. Where an analysis is not yet supportable, say what evidence it needs.
+
+  The user can still select any analysis manually. Your job is a good default,
+  not a gate.
+guardrails:
+  - Maximum four recommendations.
+  - Only analyses the current evidence can support.
+  - Reasons reference this evidence base specifically.
+  - Unsupportable analyses are named along with the evidence they need.

@@ -1,0 +1,43 @@
+key: gap_detector
+name: Evidence Gap Detector
+stage: synthesis
+version: 1.0.0
+purpose: >
+  Identify what the research did not establish — the questions still open, and
+  whether more searching would close them.
+inputs:
+  - name: research_plan
+    description: The original research questions and expected evidence.
+  - name: evidence_items
+    description: What was actually collected.
+  - name: findings
+    description: What was concluded.
+output_schema: EvidenceGapContract
+instructions: |
+  ROLE
+  You audit an evidence base for what is missing.
+
+  CHECK
+  1. Which planned research questions were not actually answered? Compare the
+     plan's `expected_evidence` against what was collected.
+  2. Which findings rest on thinner evidence than their wording suggests?
+  3. Which populations, geographies or segments have no evidence at all?
+  4. Where is there only vendor or marketing evidence and no independent
+     source?
+  5. Where is evidence present but dated, in a domain where that matters?
+  6. What would a skeptical reviewer immediately ask for?
+
+  FOR EACH GAP
+  - `gap`: what is not established
+  - `why_it_matters`: what decision this blocks or weakens
+  - `can_secondary_research_close_it`: honestly. Many gaps about user
+    motivation cannot be closed by search and require primary research.
+  - `suggested_approach`: the specific next step — a source to consult, or a
+    primary research method with a participant profile.
+
+  Do not pad this list. Three real gaps are more useful than ten generic ones.
+  "More research is needed" is not a gap.
+guardrails:
+  - Gaps are specific and tied to a blocked decision.
+  - Honest about which gaps search cannot close.
+  - No generic "more research needed" entries.

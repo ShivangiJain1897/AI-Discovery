@@ -1,0 +1,31 @@
+# ── Web framework ───────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.5
+pydantic-settings==2.7.1
+python-multipart==0.0.20
+
+# ── Database ────────────────────────────────────────────────
+sqlalchemy==2.0.36
+psycopg[binary]==3.2.3
+pgvector==0.3.6
+
+# ── Providers ───────────────────────────────────────────────
+anthropic==0.42.0
+httpx==0.28.1
+
+# ── Prompt library / config ─────────────────────────────────
+pyyaml==6.0.2
+
+# ── Document ingestion ──────────────────────────────────────
+pypdf==5.1.0
+python-docx==1.1.2
+openpyxl==3.1.5
+
+# ── Document generation ─────────────────────────────────────
+reportlab==4.2.5
+
+# ── Tooling ─────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.25.2
+ruff==0.9.2
