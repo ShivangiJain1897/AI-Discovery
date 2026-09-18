@@ -1,98 +1,177 @@
-# Setup & Run
+# Local setup
 
-Get the AI Discovery pilot running on your machine in a couple of minutes.
+## Requirements
 
-## Prerequisites
+| | |
+|---|---|
+| Python | 3.11+ |
+| Node | 20+ |
+| Postgres | 16 with the `vector` extension |
+| Docker | optional — only for the bundled Postgres |
 
-- **Node.js 18+** (20+ recommended) and **npm** — check with `node -v`
-- **git**
-- No database, no API key required to start (it runs in demo mode + real reviews)
+No API keys are required to run the platform. See
+[Running without credentials](#running-without-credentials).
 
-## 1. Get the code
+---
 
-```bash
-git clone https://github.com/ShivangiJain1897/AI-Discovery.git
-cd AI-Discovery
-git checkout claude/ai-discovery-payer-platform-tjx1ri
-```
-
-## 2. Install & run
+## 1. Configure
 
 ```bash
-npm install
-npm run dev
+cp .env.example .env
 ```
 
-Open **http://localhost:3000**.
-
-> Port 3000 already in use? Run `PORT=3001 npm run dev` and open that port instead.
-
-## 3. Use it
-
-1. **Paste your input** — a feature idea, a written requirement, or a meeting transcript.
-   (Or click **Try an example** to prefill one.)
-2. (Optional) Set the input type and add **product context**, e.g. `Medicare Advantage member app`.
-3. **Choose what to generate** — tick any capabilities: PRD, Detailed Requirements, Market /
-   Competitive / Feedback research, Process & Domain Analysis, Defect Foresight, or Business Value
-   (quantifiable / qualitative).
-4. Click **Generate**.
-
-You'll get one clean output card per capability — with sections, bullets, and tables — plus your
-input echoed for reference.
-
-Everything works with **no API key** (demo mode returns strong illustrative templates with your
-input woven in). Add a key for live, Claude-generated analysis.
-
-## 4. Prove the "real data" grounding (no UI needed)
-
-Needs normal outbound internet (it calls Apple's public `itunes.apple.com` endpoints):
+The defaults work against the bundled Postgres. To enable live research, set:
 
 ```bash
-npm run reviews:probe -- "Aetna Health"
-# also works with an App Store URL or a numeric app id
+ANTHROPIC_API_KEY=sk-ant-...
+TAVILY_API_KEY=tvly-...        # or BRAVE_API_KEY with SEARCH_PROVIDER=brave
 ```
 
-Prints the resolved app, how many real reviews were fetched, and the grounded defect signals
-with quoted, linked citations.
+Every provider is selected by name in `.env`, so switching models, search
+engines, embeddings or object storage never requires a code change.
 
-Run the offline tests (validate parsing against Apple's real schema + clustering):
+## 2. Install
 
 ```bash
-npm run test:grounding
+make install
 ```
 
-## 5. (Optional) Enable live Claude agents
+Creates `apps/api/.venv` with the Python dependencies, and installs the web
+dependencies.
+
+## 3. Database
+
+### With Docker
 
 ```bash
-cp .env.example .env.local
-# edit .env.local and set:
-#   ANTHROPIC_API_KEY=sk-ant-...
-npm run dev
+make db-up      # pgvector/pgvector:pg16 on :5432, extensions created on boot
 ```
 
-The badge in the top-right flips from **Demo mode** to **Live · Claude**. The agents now reason
-with Claude instead of seed data; the Defect agent still cites real reviews.
+### Without Docker
 
-You can also override the model: set `ANTHROPIC_MODEL` in `.env.local`.
-
-## Build for production
+Install Postgres 16 and the pgvector extension, then create the database:
 
 ```bash
-npm run build
-npm run start        # serves the optimized build on http://localhost:3000
+# Debian / Ubuntu
+sudo apt-get install -y postgresql-16 postgresql-16-pgvector
+
+sudo -u postgres createuser --createdb discovery
+sudo -u postgres createdb -O discovery discovery
+sudo -u postgres psql -d discovery -c 'CREATE EXTENSION IF NOT EXISTS vector'
 ```
 
-## Troubleshooting
+```bash
+# macOS
+brew install postgresql@16 pgvector
+createdb discovery
+psql -d discovery -c 'CREATE EXTENSION IF NOT EXISTS vector'
+```
 
-- **`itunes.apple.com` blocked / reviews not loading** — some corporate or CI networks block it.
-  The Defect agent falls back to clearly-labeled generated examples and says so; the rest of the
-  app is unaffected. On a normal network it fetches real data.
-- **Node version errors** — upgrade to Node 20+.
-- **Port conflict** — use `PORT=<n> npm run dev`.
-- **Nothing appears after "Run discovery"** — the run executes server-side and can take a few
-  seconds; the page polls and updates when it completes. Check the terminal for errors.
+Point `DATABASE_URL` at it:
 
-## Where things live
+```
+DATABASE_URL=postgresql+psycopg://discovery@localhost:5432/discovery
+```
 
-See [`README.md`](./README.md) for the architecture, the agent design, the grounding approach,
-and the roadmap to production.
+## 4. Schema and sample data
+
+```bash
+make migrate    # create tables and extensions
+make seed       # load the sample Medicaid cost-transparency project
+```
+
+The seeded project is complete — context, research plan, 10 sources, 16
+evidence items, 8 themes, 6 findings, 3 insights, an analysis, 3 opportunities
+and 4 use cases — so the whole product is explorable immediately.
+
+> Every seeded evidence item is explicitly marked as illustrative and carries a
+> limitation saying so. The organizations named are real; the specific
+> statements were **not** retrieved from them, and `quantities` is empty
+> throughout. Seeding invented statistics attributed to real bodies would be
+> exactly the failure this product exists to prevent. Run real research to get
+> real evidence.
+
+## 5. Run
+
+```bash
+make dev        # database + API + web together
+```
+
+| | |
+|---|---|
+| Web | <http://localhost:3000> |
+| API | <http://localhost:8000> |
+| API docs | <http://localhost:8000/docs> |
+| Health | <http://localhost:8000/health> |
+
+Or run them separately:
+
+```bash
+make api
+make web
+```
+
+---
+
+## Running without credentials
+
+The platform runs with no API keys. Each provider falls back automatically:
+
+| Provider | Without a key |
+|---|---|
+| Model | Deterministic provider. Composes stored data; reports "Not established" wherever reasoning would be required. |
+| Search | Returns results drawn from the source registry, each explicitly labelled a placeholder. |
+| Embeddings | Hashed bag-of-words vectors — exercises the vector path, not semantic. |
+
+`/health` and the Settings screen both report which providers are actually in
+use, so "why does everything say Not established?" always has a visible answer.
+
+The fallback never invents content. A PRD generated without a model has its
+evidence and problem sections populated from real stored data, and the other 21
+sections marked **Unknown**.
+
+---
+
+## Tests
+
+```bash
+make test         # backend + frontend
+make test-api     # 117 backend tests
+make test-web     # typecheck + production build
+make lint
+```
+
+The backend suite needs a running Postgres with pgvector — the same one the app
+uses. It creates its own tables and rolls back between tests.
+
+---
+
+## Common problems
+
+**`connection refused` on port 5432** — Postgres is not running.
+`make db-up`, or start your local server.
+
+**`extension "vector" is not available`** — pgvector is not installed for this
+Postgres. Install `postgresql-16-pgvector` (or the Homebrew `pgvector`), then
+re-run `make migrate`.
+
+**Everything says "Not established"** — no model credential. Check `/health`;
+set `ANTHROPIC_API_KEY` and restart the API.
+
+**Research returns placeholder sources** — no search credential. Set
+`TAVILY_API_KEY` (or `BRAVE_API_KEY` with `SEARCH_PROVIDER=brave`).
+
+**`Cannot reach the API`** in the web UI — the API is not running, or
+`NEXT_PUBLIC_API_BASE_URL` points somewhere else. It is read at build time for
+production builds.
+
+**Port already in use** — change `API_PORT`, or run
+`cd apps/web && npx next dev -p 3001`.
+
+---
+
+## Reset
+
+```bash
+make db-reset     # drop, recreate and reseed
+```

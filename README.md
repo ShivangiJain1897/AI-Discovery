@@ -1,142 +1,221 @@
-# Discovery Studio
+# AI Product Discovery Platform
 
-A chat-driven, human-in-the-loop **product discovery** workflow. Drop in a problem, an idea, a
-requirement, or a raw transcript, and a team of AI agents figures out what they need to know,
-surfaces findings you validate, and turns it into a **PRD or backlog you own**.
+A structured discovery workspace for product managers, business analysts,
+product leaders, UX researchers and technical PMs.
 
-The whole thing is one loop, born from a single chat box:
+It turns an ambiguous product question into decision-ready artifacts — and
+keeps every conclusion traceable back to the source it came from.
 
-**Say anything → agents intake what they need → you validate the findings → generate.**
+> **Not an engineer?** Read **[START_HERE.md](START_HERE.md)** instead of this
+> file. It walks through installation in plain language, and there is a
+> double-click installer (`setup.command` on Mac, `setup.bat` on Windows).
 
-## The flow
+```
+Research Question → Research Strategy → Primary + Secondary Research → Evidence
+  → Themes → Findings → Analysis → Problems / Opportunities → Use Cases
+  → Recommendations → PRD / Business Case / Feature Brief / Backlog / Exec Summary
+```
 
-1. **Chat entry.** Type a problem/idea/solution/requirement or paste a transcript. Tag the input
-   type or let the **orchestrator auto-detect** it. Pick which agents work the case.
-2. **The agent team.** Six lenses, each with its own intake and findings:
-   - 🧑‍🔬 **User Research** — who the users are, their jobs, needs, and pains.
-   - ⚙️ **Process Mining** — the current process, handoffs, manual steps, bottlenecks.
-   - 🐞 **Defect Detection** — current defects and reliability issues in the experience.
-   - 📈 **Market & Competitive** — market framing, competitors, shifting expectations.
-   - ⚖️ **Regulatory & Environment** — government regulations, PHI, compliance (HIPAA/CMS-aware).
-   - 🎯 **Business Priority** — business goals, value, effort, strategic priority.
-3. **Per-agent intake.** Each agent needs a few questions answered — almost like a form. The input
-   (especially a transcript) **auto-populates** what it can. A **side panel** shows what got
-   **captured** vs. what's **still needed**, and prompts you to fill the gaps.
-4. **Sectioned findings.** Every agent returns a section of specific findings.
-5. **Validate & augment.** Mark each finding **Right** or **Off**, and add "also consider…" notes.
-   Your validation shapes what gets generated.
-6. **Generate.** Turn the validated findings into a **PRD** or a **prioritized backlog**.
+The differentiator is not the prose. It is:
 
-It runs out of the box in **demo mode** (deterministic, illustrative outputs, no API key) and
-switches to **live outputs powered by Claude** the moment you add an API key. In healthcare/payer
-contexts (member, claim, provider, PHI…) the agents automatically pull in the right domain and
-regulatory framing.
+> **Research once → preserve the evidence → analyse it many ways → generate
+> multiple product outputs.**
 
-> The earlier Intake tracker was split into its own repo (`use-case-tracker`) for a separate team.
-
-**Deploying it for a few people?** See [`DEPLOY.md`](./DEPLOY.md) — Vercel + a hosted Postgres +
-an optional shared password, ~15 minutes, no code changes.
-
-> New here? [`SETUP.md`](./SETUP.md) has step-by-step run instructions and troubleshooting.
-
-> Want to shape the agents — their questions, personas, and outputs? See
-> [`docs/TUNING-AGENTS.md`](./docs/TUNING-AGENTS.md).
+This is not a chatbot. The fundamental object is a **Discovery Project**, not a
+message.
 
 ---
 
-## Quick start
+## What makes it different
 
-```bash
-npm install
-npm run dev          # http://localhost:3000
-```
+**Evidence before conclusions.** The system never jumps from a web search to a
+recommendation. It walks `Source → Evidence → Finding → Insight → Analysis →
+Recommendation`, and each of those is a distinct, persisted object that carries
+references to the one beneath it. A sentence in a generated PRD can be clicked
+back to the verbatim excerpt from the source that supports it.
 
-Type a problem or paste a transcript, pick your agents, click **Run discovery**. Works with **no
-API key**.
+**Research and analysis are separate.** Research answers *"what did we learn?"*.
+Analysis answers *"what does this mean?"*. They are separate actions in the UI
+and separate modules in the code, sharing one evidence base — which is what
+makes "analyse it many ways" real rather than a slogan.
 
-### Enable live outputs (Claude)
+**Sources are not equal.** A four-tier authority model runs through the whole
+product. A government dataset outranks a blog summarizing that dataset; a
+regulation outranks an article about it. A domain-aware Source Router decides
+where research actually happens, so a Medicaid policy question reaches CMS and
+a member-experience question reaches Reddit — and neither substitutes for the
+other.
 
-```bash
-cp .env.example .env.local
-# set ANTHROPIC_API_KEY=sk-ant-...
-```
+**It knows when to say "we don't know."** Every substantive statement carries a
+knowledge state: `known`, `likely`, `hypothesis`, `unknown`. A generated PRD
+marks sections the discovery did not establish as **Unknown**, **Assumption** or
+**Needs Validation** rather than filling them with plausible fiction. Research
+coverage is reported with qualitative levels, never an invented completeness
+percentage.
 
-The badge flips from **Demo mode** to **Live · Claude**, and classification, intake extraction,
-findings, and generated documents are all produced by Claude from your actual input. Override the
-model with `ANTHROPIC_MODEL`.
+**Persona changes the lens, not the evidence.** A VP and a business analyst get
+different emphasis, altitude and outputs from an identical evidence base.
 
 ---
 
 ## Architecture
 
 ```
-app/
-  page.tsx                     Chat entry: input + type + agent picker → create workflow
-  w/[id]/page.tsx              Workflow view: stepper (Intake → Findings → Generate),
-                               intake side-drawer (captured vs needed), findings with
-                               Right/Off validation + augment notes, PRD/backlog output
-  components/Shell.tsx         Constant sidebar: New discovery + history + mode badge
-  api/
-    agents/route.ts            Agent catalog (no system prompts) + mode
-    workflow/route.ts          GET list / POST create (classify + suggest agents)
-    workflow/[id]/route.ts     GET / PATCH (intake, verdicts, notes, stage) / DELETE
-    workflow/[id]/select/route.ts   Set selected agents + auto-extract each one's intake
-    workflow/[id]/run/route.ts      Run selected agents → findings
-    workflow/[id]/generate/route.ts Generate PRD / backlog from validated findings
-  globals.css                  Futuristic light design system
-
-lib/
-  workflow/
-    types.ts                   Workflow, AgentState, IntakeField, Finding, GeneratedOutput
-    agents.ts                  The six agents: intake questions, extractIntake, runAgent
-    orchestrator.ts            classifyInput (auto-detect type) + suggestAgents
-    generate.ts                PRD / backlog from validated (non-rejected) findings + notes
-    store.ts                   Persistence via the storage collection abstraction
-  llm/
-    provider.ts                LlmProvider interface + auto-selection (live vs demo)
-    anthropic.ts               Live provider (Claude)
-    mock.ts                    Demo provider (deterministic generators do the work)
-  storage/
-    collection.ts              Swappable persistence (file store / Postgres)
+AI-Discovery/
+├── prompts/              31 versioned prompt templates + universal preamble
+├── apps/
+│   ├── api/              Python · FastAPI · SQLAlchemy · Postgres + pgvector
+│   │   └── app/
+│   │       ├── domain/       enums, inter-agent contracts, API schemas
+│   │       ├── db/           ORM models for all 23 entities
+│   │       ├── llm/          model provider abstraction (Anthropic + fallback)
+│   │       ├── search/       search provider abstraction (Tavily/Brave + fallback)
+│   │       ├── prompts/      prompt library loader
+│   │       ├── orchestration/ the agent pipeline
+│   │       ├── services/     source registry, coverage, safety, ingestion, jobs
+│   │       ├── exporters/    DOCX · PDF · XLSX · CSV · Markdown · JSON
+│   │       ├── routers/      HTTP API
+│   │       └── seed/         sample discovery project
+│   └── web/              Next.js 15 · TypeScript · custom design system
+└── docs/                 architecture, data model, methodology
 ```
 
-**Design choices that make this extensible:**
+Every provider — model, search, embeddings, storage — is selected by name in
+`app/config.py` and replaceable through environment variables alone.
 
-- **One workflow object.** Everything a user does — input type, per-agent intake, findings
-  verdicts, augment notes, generated outputs — lives on the `Workflow`, so the flow is resumable
-  and auditable, and each API call is a small mutation on it.
-- **One provider interface.** Agents never touch the SDK. Live vs. demo is a single branch on
-  `provider.mode`; demo mode uses deterministic generators so the whole loop works with no key.
-- **Add an agent in one place.** A new lens is one entry in `AGENTS` (name, blurb, intake
-  questions, system persona) — extraction, running, and the UI pick it up automatically.
+### The orchestration pipeline
+
+```
+Project Context → Clarification → Research Planner → Source Router
+  → Search / Retrieval → Evidence Extractor → Evidence Store → Evidence Critic
+  → Synthesis Engine → Analysis Agents → Opportunity Engine
+  → Artifact Generator → Artifact Critic → Output
+```
+
+Agents communicate through typed Pydantic contracts, not free-form
+conversation. That is what preserves provenance: a `Finding` carries the
+evidence ids it rests on, an `Insight` carries finding ids, a `Recommendation`
+carries both. Nothing in the chain can quietly become unsourced.
+
+The user never sees those agent names. They see four actions: **Research**,
+**Analyse**, **Find opportunities**, **Generate**.
 
 ---
 
-## Data store
+## Quick start
 
-All persistence goes through one abstraction (`lib/storage/collection.ts`):
+```bash
+cp .env.example .env          # optionally add ANTHROPIC_API_KEY + a search key
+make install                  # api venv + web dependencies
+make db-up                    # Postgres 16 + pgvector via Docker
+make migrate                  # create the schema
+make seed                     # load the sample discovery project
+make dev                      # API on :8000, web on :3000
+```
 
-- **Local dev:** no setup — data persists to `.data/*.json`.
-- **Production:** set `DATABASE_URL` and it uses **Postgres** (tables auto-create; each row a JSONB
-  document). This is what makes the app deployable — a cloud host's filesystem is ephemeral.
+Open <http://localhost:3000>.
 
-Collection: `workflows` (one document per discovery).
+Full instructions, including running without Docker, are in
+[SETUP.md](SETUP.md). Deployment is in [DEPLOY.md](DEPLOY.md).
 
-## Roadmap to production
+### Running without credentials
 
-1. **Ground the research agents** — give User Research / Market / Competitive real retrieval with
-   citations instead of reasoning from the model's knowledge.
-2. **Connect Defect Detection to production** — telemetry, error tracking, session replay for real
-   defects instead of anticipated ones.
-3. **Streaming** — stream each agent's findings as it completes (SSE) instead of running as a batch.
-4. **Export** — push generated PRDs/backlogs to Jira/Confluence/Docs.
-5. **Trust & compliance** — provenance on every finding, PHI handling (HIPAA), audit logs, RBAC.
+The platform runs with no API keys at all. Each provider falls back to a
+deterministic implementation, and the UI says so plainly.
 
-## Notes
+The fallback does **not** invent content. It composes what is actually stored —
+real evidence statements, real sources, real refs — and reports "Not
+established" everywhere a model would have had to reason. That is the correct
+behaviour for a product built on evidence discipline, and it means the test
+suite asserts on pipeline behaviour rather than on mocked return values.
 
-- **Stack:** Next.js (App Router) + React + TypeScript, hand-written CSS, optional
-  `@anthropic-ai/sdk`, `pg` for Postgres. Storage swappable via `DATABASE_URL`.
-- **Auth:** optional shared-password gate via `APP_PASSWORD` (`middleware.ts`); swap for real SSO
-  when productionizing.
-- **Security:** pinned to a patched Next.js 15.x. `npm audit` may still flag `sharp`/libvips CVEs —
-  a transitive **optional** dependency this app doesn't use.
+Set `ANTHROPIC_API_KEY` and a search key to enable full discovery.
+
+---
+
+## The evidence model
+
+Each evidence item is one atomic, attributable statement:
+
+| Field | Purpose |
+|---|---|
+| `ref` | `E-014` — what artifacts cite and the UI renders as a clickable chip |
+| `statement` | One claim. Not a summary of an article. |
+| `excerpt` | Verbatim source text, never paraphrased |
+| `evidence_type` | fact · claim · opinion · user_feedback · statistic · observation · **inference** |
+| `population` | Exactly who the source described. Never widened. |
+| `origin` | `external` or `internal` — internal never enters a public query |
+| `strength` | Strong · Moderate · Directional · Anecdotal, **with its reasoning** |
+| `corroborated_by` / `contradicted_by` | Independent agreement and conflict |
+| `limitations` | Sample, method, funding, age |
+
+Two choices carry most of the weight:
+
+- **`inference` is a distinct evidence type.** Model reasoning is never stored
+  as something a source said.
+- **Strength is qualitative and carries its reasoning.** Averaging authority,
+  recency and corroboration into `0.78` would invent precision that does not
+  exist. The label is shown with *why*.
+
+---
+
+## What it can do
+
+| Capability | Where |
+|---|---|
+| 12 research types, routed by domain, geography and question | Source Router |
+| 4-tier source authority model + 46-entry source registry | `services/source_registry.py` |
+| Editable research plans — remove questions, rewrite queries, add sources | Research screen |
+| Per-question progress during a run, not a fake spinner | Research screen |
+| Faceted evidence library with search, tier, type, strength, origin filters | Evidence screen |
+| 15 analysis types with a router that recommends only supportable ones | Analysis screen |
+| Opportunities with value hypotheses and *disconfirming* validation plans | Opportunities |
+| 20 artifact types, each with a fixed section template | Artifacts |
+| Artifact critic: catches overstatement, population drift, broken citations | Every generation |
+| Artifact versioning with per-section regeneration and change summaries | Artifact detail |
+| Native DOCX, PDF, XLSX, CSV, Markdown and JSON export with citations intact | Everywhere |
+| Internal document ingestion (PDF/DOCX/XLSX/CSV/JSON/MD/TXT), labelled INTERNAL | Research screen |
+| PII/PHI detection before any text reaches a model provider | `services/safety.py` |
+| Copilot answering from project evidence only | Every project screen |
+
+---
+
+## Testing
+
+```bash
+make test           # backend suite + frontend typecheck and build
+make test-api       # 117 backend tests
+make lint
+```
+
+Tests run against real Postgres rather than an in-memory stand-in, because the
+model depends on JSONB, pgvector and row-level locking that SQLite would not
+exercise. They assert on the behaviours the product exists to guarantee:
+strength follows authority, coverage is honest about gaps, artifacts mark what
+they could not establish, and every citation in a generated document resolves.
+
+---
+
+## Documentation
+
+- [SETUP.md](SETUP.md) — local setup, including without Docker
+- [DEPLOY.md](DEPLOY.md) — deployment and configuration
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — services, data model, API
+- [docs/METHODOLOGY.md](docs/METHODOLOGY.md) — the discovery method the product encodes
+- [prompts/README.md](prompts/README.md) — the prompt library
+
+---
+
+## Scope
+
+This is **MVP 1** as specified, with parts of MVP 2 in place: file upload and
+internal evidence ingestion, opportunity management, prioritization, business
+cases, backlog generation and Excel export all work today.
+
+Not built: authentication beyond the workspace abstraction, real-time
+collaboration, third-party integrations, and a prompt-editing UI (prompts are
+version-controlled files, edited in git under review — deliberately).
+
+Security and privacy controls exist — PHI detection, workspace separation,
+audit logging, retention configuration, redaction — but **this does not make a
+deployment HIPAA compliant**, and nothing in this codebase claims it does.

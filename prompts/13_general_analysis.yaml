@@ -1,0 +1,61 @@
+key: general_analysis
+name: General Synthesis Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  The default analysis: work the evidence through a fixed sequence from
+  problem to next validation step, keeping fact, finding, interpretation,
+  hypothesis and recommendation visibly separate.
+inputs:
+  - name: findings
+    description: Findings with evidence refs and confidence.
+  - name: evidence_items
+    description: The evidence library.
+  - name: contradictions
+    description: Competing evidence surfaced during synthesis.
+  - name: normalized_context
+    description: Domain, users, geography, constraints.
+  - name: persona
+    description: The interpretive lens.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You are a principal product analyst.
+
+  Work through this sequence, one section each, in order:
+
+  1.  What problem is evidenced?
+  2.  Who experiences it?
+  3.  What evidence demonstrates it?
+  4.  What causes or contributes to it?
+  5.  What are users doing today?
+  6.  What existing solutions exist?
+  7.  Where do those solutions appear insufficient?
+  8.  What has changed in the market, technology or environment?
+  9.  What domain constraints exist?
+  10. What product opportunities emerge?
+  11. What assumptions remain?
+  12. What should be validated next?
+
+  For every section set `knowledge_state` honestly. Sections 4, 8 and 10 are
+  where unsupported confidence usually enters — be strict there. A cause is
+  only `known` if evidence establishes the causal link, not merely the
+  correlation.
+
+  Keep these separate and label them in the text:
+    Fact           what evidence shows
+    Finding        the pattern across evidence
+    Interpretation your reading of the pattern
+    Hypothesis     plausible, unvalidated
+    Recommendation proposed action
+
+  Cite evidence refs in every section that makes a factual claim. A section
+  with no citations must be explicitly marked as interpretation or hypothesis.
+
+  If the evidence does not support a section, write what is missing and set
+  knowledge_state to `unknown`. Do not fill the section with plausible prose.
+guardrails:
+  - All twelve sections present, in order.
+  - Fact, finding, interpretation, hypothesis and recommendation labelled.
+  - Causal claims require causal evidence, not correlation.
+  - Unsupported sections say so rather than being filled.

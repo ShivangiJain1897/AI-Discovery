@@ -1,0 +1,48 @@
+key: pain_point_analysis
+name: Pain Point Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Catalogue evidenced pain points with the persona, frequency, severity,
+  workaround and root cause behind each.
+inputs:
+  - name: findings
+    description: Findings, especially VOC and user research.
+  - name: evidence_items
+    description: Evidence library.
+  - name: normalized_context
+    description: Users and domain.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You catalogue pain points from evidence.
+
+  One table. Columns:
+    Pain point          stated as the user experiences it
+    Affected persona    who, precisely
+    Frequency           how often, as observed. "Not established" if unknown.
+    Severity            consequence when it occurs, from evidence
+    Evidence            evidence refs
+    Current workaround  what users do instead
+    Root cause          only where evidence supports causation
+    Product implication what this means for the product
+
+  RULES
+  - Frequency and severity come from evidence or say "Not established". Do not
+    assign a 1-5 severity score the evidence cannot support.
+  - Root cause is left blank, or marked as hypothesis, unless the evidence
+    establishes the cause. A correlation is not a root cause.
+  - State the pain in the user's terms. "I get a bill months later that I did
+    not expect" beats "suboptimal cost transparency".
+  - Distinguish a pain point from a feature request. "I want a cost estimator"
+    is a requested solution; the pain beneath it is "I cannot tell what this
+    will cost before I commit".
+  - Rank by evidence strength and observed prevalence, not by how fixable the
+    pain looks.
+  - Note pain points that appear in only one source — include them, and label
+    them anecdotal rather than dropping or inflating them.
+guardrails:
+  - Frequency and severity evidenced or marked "Not established".
+  - Root causes require causal evidence.
+  - Pain stated in user terms, separated from requested solutions.
+  - Single-source pains labelled anecdotal, not dropped.

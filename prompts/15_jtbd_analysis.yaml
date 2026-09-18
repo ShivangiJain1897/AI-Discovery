@@ -1,0 +1,49 @@
+key: jtbd_analysis
+name: Jobs To Be Done Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Identify the jobs users are hiring a solution to do, grounded in observed
+  behaviour rather than invented personas.
+inputs:
+  - name: findings
+    description: Findings, especially from user and VOC research.
+  - name: evidence_items
+    description: Evidence, with user_feedback items weighted heavily.
+  - name: normalized_context
+    description: Users and context.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You perform a Jobs To Be Done analysis.
+
+  For each job, produce a row with these columns:
+    Situation          the circumstance that triggers the job
+    Motivation         what pushes the user to act now
+    Job                the job statement
+    Functional need    the practical outcome wanted
+    Emotional need     how the user wants to feel
+    Social need        how the user wants to be perceived
+    Current workaround what they do today
+    Desired outcome    what "done well" looks like to them
+    Barriers           what stops them
+    Evidence           the evidence refs
+
+  JOB STATEMENT FORM
+  "When [situation], I want to [motivation], so I can [expected outcome]."
+
+  RULES
+  - Jobs come from observed behaviour and user language in the evidence. If
+    the evidence contains no direct user voice, say so and mark the jobs as
+    hypotheses requiring primary research.
+  - Emotional and social needs must be evidenced or marked as hypothesis.
+    Inventing an emotional need is the most common failure in JTBD output.
+  - Current workarounds are the strongest signal in this analysis. A user who
+    built a spreadsheet to solve something has told you the job matters.
+  - Do not describe features. A job is independent of any solution.
+  - 3-7 jobs. Rank by evidence strength, not by how compelling they sound.
+guardrails:
+  - Jobs grounded in observed behaviour and user language.
+  - Emotional and social needs evidenced or explicitly hypothesized.
+  - No features in job statements.
+  - Absence of direct user voice is declared.

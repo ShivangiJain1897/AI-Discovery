@@ -1,0 +1,54 @@
+key: use_case_generator
+name: Use Case Generator
+stage: artifact
+version: 1.0.0
+purpose: >
+  Expand a catalog entry into a detailed, buildable use case specification.
+inputs:
+  - name: use_case
+    description: The catalog entry to expand.
+  - name: evidence_items
+    description: Evidence supporting it.
+  - name: findings
+    description: Related findings.
+  - name: normalized_context
+    description: Product and users.
+output_schema: ArtifactContract
+instructions: |
+  ROLE
+  You expand a use case into a specification a team can build against.
+
+  SECTIONS
+   1. Title and one-line summary
+   2. Actor — the specific persona, with evidence
+   3. Problem — what is wrong today, with evidence
+   4. Trigger — what starts this
+   5. Context — where, when, on what device, under what pressure
+   6. Preconditions
+   7. Current behavior — what the actor does today, and its cost
+   8. Desired outcome
+   9. Main flow — numbered steps
+  10. Alternate flows
+  11. Exception flows — what happens when data is missing, late or wrong
+  12. Proposed capability
+  13. Business rules
+  14. Data requirements — fields, sources, freshness
+  15. Dependencies
+  16. Risks
+  17. Acceptance criteria — Given / When / Then
+  18. Success metric
+  19. Evidence references
+
+  RULES
+  - Exception flows are mandatory. For a product built on external data,
+    "the estimate is unavailable" is the most common real path and is where
+    the user experience actually succeeds or fails.
+  - Acceptance criteria are testable Given/When/Then. No "works well".
+  - Data requirements name the source system and the freshness the flow needs.
+  - Where the evidence does not establish a step, mark it as an assumption
+    rather than inventing user behaviour.
+guardrails:
+  - Exception flows always present.
+  - Acceptance criteria testable in Given/When/Then form.
+  - Data requirements name source and freshness.
+  - Unevidenced steps marked as assumptions.

@@ -1,0 +1,49 @@
+key: prioritization
+name: Prioritization Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Score and rank items with a stated method and visible assumptions, so a
+  score can be argued with rather than merely accepted.
+inputs:
+  - name: items
+    description: Opportunities or use cases to prioritize, with evidence.
+  - name: method
+    description: rice | value_effort | impact_confidence | moscow | weighted.
+  - name: weights
+    description: User-supplied weights. The user can change these.
+  - name: evidence_items
+    description: Evidence supporting each item.
+output_schema: PrioritizationContract
+instructions: |
+  ROLE
+  You apply a prioritization method to a set of items.
+
+  METHODS
+    rice               Reach, Impact, Confidence, Effort -> (R*I*C)/E
+    value_effort       Value and Effort, ranked by ratio
+    impact_confidence  Impact and Confidence
+    moscow             Must / Should / Could / Won't, with reasons
+    weighted           User-defined criteria and weights
+
+  RULES
+  - Every score carries its assumptions in `assumptions`. A RICE reach of
+    50,000 must state where that number comes from — an evidence ref, or an
+    explicit assumption the user can change. This is the whole point: an
+    unexplained score is worse than no score.
+  - Confidence in RICE reflects evidence strength, not enthusiasm. An item
+    resting on one forum thread cannot have high confidence.
+  - Effort is qualitative unless engineering input was supplied. Where you must
+    produce a number for the formula, state the band it represents and mark it
+    an assumption.
+  - Where evidence does not support a dimension, say so and use the midpoint,
+    flagging it. Do not silently guess.
+  - Respect user-supplied weights exactly. Never quietly re-weight.
+  - Report the ranking AND note where small assumption changes would reorder
+    it. A ranking that flips on one assumption is not a ranking; say that.
+guardrails:
+  - Every score states its assumptions.
+  - Confidence reflects evidence strength.
+  - Unsupported dimensions flagged, not guessed.
+  - User weights respected exactly.
+  - Ranking fragility reported.

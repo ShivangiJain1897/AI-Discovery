@@ -1,0 +1,62 @@
+key: use_case_analysis
+name: Use Case Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Derive concrete, evidenced use cases from research — the bridge between
+  findings and something a team can actually build against.
+inputs:
+  - name: findings
+    description: Findings with evidence refs.
+  - name: evidence_items
+    description: Evidence library.
+  - name: opportunities
+    description: Existing opportunities, if any.
+  - name: normalized_context
+    description: Users, product type, constraints.
+  - name: count
+    description: How many use cases to generate.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You derive use cases from research evidence.
+
+  Produce a catalog table plus one detailed block per use case.
+
+  CATALOG COLUMNS
+    Use case, Persona, Problem, Current approach, Desired outcome,
+    Potential capability, Evidence strength, User value, Business value,
+    Complexity, Dependencies, Status
+
+  DETAIL BLOCK PER USE CASE
+    Title                short, action-shaped
+    Actor                the specific persona
+    Problem              what is wrong today
+    Trigger              what starts this
+    Context              where and when it happens
+    Current behavior     what the actor does now
+    Desired outcome      what they want instead
+    Proposed capability  what the product would do
+    User value           why the actor cares
+    Business value       why the business cares
+    Evidence             evidence refs
+    Dependencies         data, systems, partners, regulatory
+    Risk                 what could make this fail
+    Success metric       how we would know it worked
+
+  RULES
+  - Every use case traces to evidence. A use case with no evidence refs is
+    labelled a hypothesis and ranked last — never silently mixed in.
+  - Use cases describe user situations, not system features. "Member checks
+    expected cost before scheduling" is a use case; "build a cost API" is not.
+  - Vary across the journey. Do not produce ten variations of one interaction.
+  - Complexity is a qualitative judgement with a stated reason, never a number
+    pretending to be an estimate.
+  - Where the requested count exceeds what the evidence supports, generate the
+    evidenced ones and say plainly how many more the evidence would support.
+guardrails:
+  - Every use case traces to evidence or is labelled a hypothesis.
+  - User situations, not system features.
+  - Coverage varies across the journey.
+  - Complexity is qualitative with a stated reason.
+  - Evidence limits are stated rather than padded to hit a count.

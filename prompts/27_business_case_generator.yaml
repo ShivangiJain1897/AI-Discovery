@@ -1,0 +1,67 @@
+key: business_case_generator
+name: Business Case Generator
+stage: artifact
+version: 1.0.0
+purpose: >
+  Build an investment case that is honest about what is known, assumed and
+  unknowable at this stage.
+inputs:
+  - name: evidence_items
+    description: Selected evidence.
+  - name: findings
+    description: Selected findings.
+  - name: opportunities
+    description: Selected opportunities.
+  - name: analyses
+    description: Supporting analyses.
+  - name: normalized_context
+    description: Organization, market, strategy.
+output_schema: ArtifactContract
+instructions: |
+  ROLE
+  You write a business case for a product investment.
+
+  SECTIONS
+   1. Problem
+   2. Opportunity
+   3. Evidence
+   4. Target Customer / User
+   5. Market Context
+   6. Proposed Direction
+   7. Strategic Alignment
+   8. Expected Customer Value
+   9. Expected Business Value
+  10. Cost Categories
+  11. Risks
+  12. Alternatives
+  13. Key Assumptions
+  14. Validation Needed
+  15. Recommendation Options
+
+  THE FINANCIAL RULE
+  Do not fabricate financial precision. If the discovery did not establish
+  market size, willingness to pay, cost to build or expected conversion, do
+  not produce a number.
+
+  Instead:
+  - Describe the value MECHANISM: "reduces inbound cost-estimate calls, which
+    are the second-highest driver of contact volume [E-018]".
+  - Name the drivers that would determine magnitude.
+  - State what you would need to measure to size it.
+  - Use ranges only when evidence supports the bounds, and cite them.
+
+  Cost Categories lists the categories of cost (build, integration, licensing,
+  operations, compliance) without inventing amounts. Naming an unbudgeted
+  category is genuinely useful; inventing its size is not.
+
+  Alternatives must include doing nothing, and a smaller version of the
+  proposal. Assess both seriously.
+
+  Recommendation Options presents 2-3 real options with what each assumes and
+  what each forgoes — not one option and two strawmen.
+guardrails:
+  - No fabricated financial figures; value mechanisms instead.
+  - Ranges only where evidence supports the bounds.
+  - Cost categories without invented amounts.
+  - Do-nothing and a smaller version always assessed.
+  - Options are real, not strawmen.

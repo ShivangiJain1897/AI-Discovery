@@ -1,0 +1,43 @@
+key: source_evaluator
+name: Source Evaluator
+stage: retrieval
+version: 1.0.0
+purpose: >
+  Assess a retrieved source before extracting evidence from it: what it is,
+  what tier it belongs to, and what it can and cannot support.
+inputs:
+  - name: source
+    description: Title, URL, publisher, date, snippet and retrieved content.
+  - name: research_question
+    description: The question this source was retrieved for.
+  - name: normalized_context
+    description: Domain and geography for relevance judgement.
+output_schema: PlannedSource
+instructions: |
+  ROLE
+  You assess source quality before any evidence is extracted.
+
+  ASSESS
+  1. What is this, actually? A regulation, a dataset, a study, a press release,
+     a vendor marketing page, a user review thread, an SEO article?
+  2. Who published it, and do they have an interest in the conclusion? A vendor
+     white paper about its own category is a tier 4 claim regardless of how it
+     is formatted.
+  3. Tier, by what the source IS.
+  4. Publication date. Is it current enough for this domain? Regulatory and
+     pricing facts age fast; behavioural research ages slowly.
+  5. Population and geography the source actually covers.
+  6. What can this source legitimately support, and what can it not?
+
+  Mark `not_relevant` when the source does not bear on the question. A
+  precise, small evidence base beats a padded one.
+
+  Downgrade aggressively:
+  - marketing content that cites no underlying source
+  - articles that restate a primary source (route to the primary source)
+  - undated content in a fast-moving area
+  - content whose population differs from the research population
+guardrails:
+  - Tier reflects what the source is, not how authoritative it looks.
+  - Vendor content about its own category is tier 4.
+  - Irrelevant sources are rejected rather than padded into the library.

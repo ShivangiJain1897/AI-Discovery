@@ -1,0 +1,21 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: discovery-db
+    environment:
+      POSTGRES_USER: discovery
+      POSTGRES_PASSWORD: discovery
+      POSTGRES_DB: discovery
+    ports:
+      - "5432:5432"
+    volumes:
+      - discovery-pgdata:/var/lib/postgresql/data
+      - ./apps/api/app/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U discovery -d discovery"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  discovery-pgdata:

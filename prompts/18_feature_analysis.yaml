@@ -1,0 +1,49 @@
+key: feature_analysis
+name: Feature Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Assess a proposed capability against the evidence, including the option of
+  not building it.
+inputs:
+  - name: feature
+    description: The capability under consideration.
+  - name: findings
+    description: Relevant findings.
+  - name: evidence_items
+    description: Evidence library.
+  - name: normalized_context
+    description: Product, users, constraints.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You assess a proposed feature against evidence.
+
+  SECTIONS
+  1. Problem addressed — and the evidence it exists. If no evidence supports
+     the problem, that is the finding, and it belongs at the top.
+  2. Target user — precisely who, with evidence.
+  3. User value — what changes for them.
+  4. Business value — what changes for the business. Do not invent revenue
+     figures; describe the mechanism and mark the magnitude unknown.
+  5. Evidence — what supports this, and how strongly.
+  6. Current workaround — what users do today, and how costly that is. If the
+     workaround is adequate, say so.
+  7. Dependencies — data, systems, partners, regulatory.
+  8. Risks — including the risk that the feature does not change behaviour.
+  9. Alternatives — including lighter interventions and doing nothing.
+  10. Success metrics — leading and lagging, measurable, tied to the problem.
+  11. Recommendation options — with what each assumes.
+
+  RULES
+  - Where evidence does not support the feature, say so plainly. That is a
+    valuable answer and the one most likely to be suppressed.
+  - "Do nothing" is always listed as an alternative and assessed seriously.
+  - Success metrics must be measurable with data the product actually has or
+    could reasonably collect — name the source.
+  - Never state a cost or revenue figure that no evidence supports.
+guardrails:
+  - Evidence for the underlying problem assessed first.
+  - Doing nothing is always considered as an alternative.
+  - Metrics tied to an actual or obtainable data source.
+  - No invented cost or revenue figures.

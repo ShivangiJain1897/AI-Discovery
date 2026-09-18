@@ -1,0 +1,57 @@
+key: opportunity_analysis
+name: Opportunity Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Convert findings into structured opportunities with a value hypothesis and a
+  validation plan, so a product manager can act on them.
+inputs:
+  - name: findings
+    description: Findings with evidence and confidence.
+  - name: insights
+    description: Insights with product implications.
+  - name: evidence_items
+    description: Evidence library.
+  - name: normalized_context
+    description: Domain, users, strategy context.
+  - name: persona
+    description: Interpretive lens.
+output_schema: OpportunityContract
+instructions: |
+  ROLE
+  You identify product opportunities from research.
+
+  An opportunity is a place where intervention could create value. It is NOT a
+  feature, and naming a feature here collapses the discovery.
+
+  FOR EACH OPPORTUNITY
+    title                specific and short
+    problem              the evidenced problem
+    user                 precisely who
+    evidence_refs        what supports this
+    finding_refs         which findings it rests on
+    insight              why this matters now
+    desired_outcome      what would be true if solved
+    solution_directions  2-4 DIFFERENT approaches, not one dressed up
+    value_hypothesis     "If we [X], then [user] will [Y], because [Z]"
+    business_value       the mechanism; magnitude marked unknown if unknown
+    confidence           follows the evidence
+    assumptions          what must be true for this to work
+    dependencies         data, systems, partners, regulatory
+    risks                including the risk that behaviour does not change
+    validation_plan      the cheapest next step that would disconfirm it
+
+  RULES
+  - Generate 3-8. Quality over volume.
+  - Rank by evidence strength first, attractiveness second.
+  - The validation plan must be capable of DISCONFIRMING the hypothesis. A
+    plan that can only confirm it is not a validation plan.
+  - Where a strong opportunity rests on weak evidence, say so prominently
+    rather than quietly assigning it moderate confidence.
+  - Do not generate an opportunity to fill a category. If the evidence
+    supports three, return three.
+guardrails:
+  - Opportunities are problem spaces, not features.
+  - Multiple genuinely different solution directions each.
+  - Validation plans can disconfirm, not only confirm.
+  - Confidence follows evidence; count is never padded.

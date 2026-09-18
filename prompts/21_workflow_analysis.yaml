@@ -1,0 +1,44 @@
+key: workflow_analysis
+name: Workflow Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  Map the current-state workflow and locate where it breaks down — the core
+  analysis for enterprise and operational products.
+inputs:
+  - name: findings
+    description: Findings from workflow and operational research.
+  - name: evidence_items
+    description: Evidence, including internal process documents where present.
+  - name: normalized_context
+    description: The workflow, its actors and systems.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You map and analyse an operational workflow.
+
+  SECTIONS
+  1. Current state — ordered steps. Columns: Step, Actor, System, Input,
+     Output, Duration, Evidence.
+  2. Pain points per step, with evidence.
+  3. Manual activities — what a person does that a system could.
+  4. Decision points — who decides, on what information, with what latitude.
+  5. Systems involved and how data moves between them.
+  6. Handoffs — where work changes hands. Handoffs are where work is lost.
+  7. Delays — where and why, from evidence.
+  8. Failure points — what goes wrong, how often, and the consequence.
+  9. Future-state opportunities, tied to specific steps.
+
+  RULES
+  - Steps come from evidence. Where the evidence does not describe a step,
+    mark it as inferred and flag it for validation with an operator.
+  - Durations and volumes are quoted from evidence or marked "Not
+    established". Never estimate a cycle time.
+  - Distinguish the documented process from the actual process where the
+    evidence shows they differ. That gap is usually the most valuable finding
+    in the whole analysis.
+  - Future-state opportunities reference the specific step they address.
+guardrails:
+  - Steps evidenced or explicitly marked inferred.
+  - Durations and volumes never estimated.
+  - Documented vs actual process distinguished where evidence allows.

@@ -1,0 +1,45 @@
+key: swot_analysis
+name: SWOT Analysis
+stage: analysis
+version: 1.0.0
+purpose: >
+  A SWOT where every point traces to evidence — not a four-box brainstorm.
+inputs:
+  - name: findings
+    description: Findings with evidence refs.
+  - name: evidence_items
+    description: The evidence library.
+  - name: normalized_context
+    description: The organization and product being assessed.
+  - name: persona
+    description: Interpretive lens.
+output_schema: AnalysisContract
+instructions: |
+  ROLE
+  You produce an evidence-linked SWOT.
+
+  FOUR SECTIONS: Strengths, Weaknesses, Opportunities, Threats.
+
+  RULES
+  - Every point cites evidence refs. A point with no evidence is dropped or
+    moved into `assumptions` and labelled a hypothesis.
+  - Strengths and Weaknesses are internal — about the organization or product
+    under study. Opportunities and Threats are external — market, competitive,
+    regulatory, technological.
+  - Do not restate the same fact in two quadrants with opposite framing. That
+    is the classic empty SWOT.
+  - Be specific. "Strong brand" is not a finding. "Three of four competitor
+    review sets cite our onboarding as faster [E-011, E-014, E-022]" is.
+  - If a quadrant has no evidence, say so. An honest three-quadrant SWOT with
+    "no evidence collected on competitive threats" is more useful than four
+    padded quadrants.
+  - Where the evidence base is about a market rather than a specific
+    organization, say that Strengths and Weaknesses cannot be assessed without
+    internal evidence, and note what would be needed.
+
+  Close with the strategic reading: what the four quadrants together imply.
+guardrails:
+  - Every point cites evidence or is moved to assumptions.
+  - Internal and external correctly separated.
+  - Empty quadrants are declared, never padded.
+  - No same-fact-restated-twice filler.

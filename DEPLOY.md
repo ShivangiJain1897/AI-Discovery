@@ -1,93 +1,161 @@
-# Deploy — put it online for a few people, with a real data store
+# Deployment
 
-This app is built to deploy as-is. The only things it needs in production are a
-**Postgres database** (the local file store won't persist on a cloud host) and,
-optionally, a **shared password** so only your people can open it.
+The platform is two deployable units plus a database:
 
-**Recommended stack (all have free tiers, no credit card to start):**
-
-| Piece | Use | Free option |
-|---|---|---|
-| **Vercel** | Hosting (it's a Next.js app) | Hobby plan |
-| **Neon** (or Supabase) | Postgres database | Free tier |
-| **Anthropic API key** | Live AI outputs | Pay-as-you-go |
-
-Total time: ~15 minutes. You don't touch code — just set three environment
-variables.
+| Unit | What it needs |
+|---|---|
+| `apps/api` | Python 3.11, Postgres 16 + pgvector, outbound HTTPS |
+| `apps/web` | Node 20, the API's public URL at build time |
+| Database | Postgres 16 with `vector` and `pg_trgm` |
 
 ---
 
-## Step 1 — Create the database (Neon)
+## Configuration
 
-1. Go to **https://neon.tech** → sign up (GitHub login is easiest).
-2. Create a project (any name, any region near you).
-3. On the project dashboard, find **Connection string** and copy it. It looks
-   like:
-   ```
-   postgresql://USER:PASSWORD@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
-   ```
-   Keep it handy — that's your `DATABASE_URL`. (The app creates its tables
-   automatically on first use; nothing to run.)
+Everything is environment variables — see `.env.example` for the full list.
+The minimum for a real deployment:
 
-*(Supabase works too: create a project → Project Settings → Database → copy the
-connection string / URI.)*
+```bash
+APP_ENV=production
+SECRET_KEY=<generate a strong random value>
+DATABASE_URL=postgresql+psycopg://user:password@host:5432/discovery
 
-## Step 2 — Get an Anthropic API key (for live AI output)
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-opus-5
+TAVILY_API_KEY=tvly-...
 
-1. Go to **https://console.anthropic.com** → **API Keys** → create one.
-2. Copy it — that's your `ANTHROPIC_API_KEY`. Without it the app still runs, but
-   in demo mode (seed outputs).
+WEB_BASE_URL=https://discovery.example.com     # CORS origin
+NEXT_PUBLIC_API_BASE_URL=https://api.example.com
+```
 
-## Step 3 — Deploy to Vercel
+For a workspace- or organization-scoped Anthropic key, also set
+`ANTHROPIC_WORKSPACE_ID`.
 
-1. Go to **https://vercel.com** → sign up with **GitHub**.
-2. **Add New → Project** → import **ShivangiJain1897/AI-Discovery**.
-3. Pick the branch **`claude/ai-discovery-payer-platform-tjx1ri`** (or `main`
-   once merged).
-4. Before clicking Deploy, open **Environment Variables** and add:
+### Provider selection
 
-   | Name | Value |
-   |---|---|
-   | `DATABASE_URL` | the Neon connection string from Step 1 |
-   | `ANTHROPIC_API_KEY` | your key from Step 2 |
-   | `APP_PASSWORD` | any password you'll share with your team (optional) |
+| Variable | Options |
+|---|---|
+| `LLM_PROVIDER` | `anthropic`, `mock` |
+| `SEARCH_PROVIDER` | `tavily`, `brave`, `mock` |
+| `EMBEDDING_PROVIDER` | `voyage`, `mock` |
+| `STORAGE_PROVIDER` | `local`, `s3` |
 
-5. Click **Deploy**. In ~2 minutes you get a live URL like
-   `ai-discovery-xxxx.vercel.app`.
-
-## Step 4 — Share it
-
-Send the URL to your team. If you set `APP_PASSWORD`, their browser will ask for
-a login — username can be anything, password is the one you set.
+Each falls back to `mock` when its credential is absent rather than failing to
+boot. In production, check `/health` after deploying to confirm the providers
+you intended are actually live — a silent fallback in production would produce
+"Not established" everywhere, which is safe but not what you wanted.
 
 ---
 
-## What each variable does
+## Database
 
-- **`DATABASE_URL`** — turns on the Postgres store. Intake use cases, discovery
-  sessions, and prompt edits all persist here and are shared across everyone.
-  Without it, the app falls back to a local file (fine for dev, lost on a host).
-- **`ANTHROPIC_API_KEY`** — switches from demo seed outputs to real Claude
-  output. The badge in the app shows "Live · Claude" when it's set.
-- **`APP_PASSWORD`** — gates the whole app behind one shared password. Leave
-  unset for an open instance.
+```bash
+psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector'
+psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm'
+cd apps/api && python -m app.cli migrate
+```
 
-## Updating the deployment
+`migrate` creates tables from the SQLAlchemy metadata. It is additive and safe
+to re-run. For a schema that has drifted, introduce Alembic — the metadata is
+already structured for it.
 
-Every push to the branch you deployed auto-redeploys on Vercel. So the normal
-flow — make a change, `git push` — updates the live site in a couple of minutes.
+`EMBEDDING_DIMENSION` must match your embedding provider's output size, and
+changing it after data exists requires rewriting the `evidence.embedding`
+column.
 
-## Cost notes
+### Backups
 
-- Vercel Hobby + Neon free tier: **$0** for a small pilot.
-- Anthropic: **pay per token**. A few users doing discovery runs is typically a
-  few dollars; set a usage limit in the Anthropic console to be safe.
+Evidence is the product. Back up the whole database; the artifacts,
+findings and citations are all reconstructable from it, but the evidence
+library is not reconstructable from anything else once the sources have moved.
 
-## When you outgrow the pilot (later)
+---
 
-- **Auth**: replace the shared password with real accounts/SSO (e.g. Auth.js) so
-  you know who did what. The password gate lives in `middleware.ts`.
-- **Per-user attribution**: the intake tracker already stamps a name; wire it to
-  real identities.
-- **Backups & migrations**: Neon/Supabase handle backups; add schema migrations
-  if the data model grows (today tables are simple JSONB and self-create).
+## API
+
+```bash
+cd apps/api
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+Behind a reverse proxy, allow long request timeouts on `/projects/*/research/run`
+and the other generation endpoints — they return a job immediately, but the
+background task runs in-process.
+
+### Background jobs
+
+Jobs are persisted as rows and executed as FastAPI background tasks. That is
+correct for a single-process deployment and survives restarts as *records* —
+but a job interrupted mid-run stays `running` and will not resume.
+
+For multiple workers or long deep-research runs, run a dedicated worker:
+`Job` rows are already the queue contract, so moving to Celery or RQ means
+changing how a job is *picked up*, not how it is recorded.
+
+---
+
+## Web
+
+```bash
+cd apps/web
+NEXT_PUBLIC_API_BASE_URL=https://api.example.com npm run build
+npm run start   # or deploy the build output to any Next.js host
+```
+
+`NEXT_PUBLIC_API_BASE_URL` is inlined at build time, so a change requires a
+rebuild.
+
+---
+
+## Docker Compose
+
+`docker-compose.yml` ships the database only. For a full containerized
+deployment, add services for the two apps:
+
+```yaml
+  api:
+    build: ./apps/api
+    env_file: .env
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["8000:8000"]
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+  web:
+    build: ./apps/web
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://api:8000
+    depends_on: [api]
+    ports: ["3000:3000"]
+```
+
+---
+
+## Security and governance
+
+Configured through environment variables:
+
+| Variable | Effect |
+|---|---|
+| `PHI_DETECTION_ENABLED` | Scan text for identifiers before any model call |
+| `PHI_ON_DETECT` | `block`, `redact` or `warn` |
+| `AUDIT_LOG_ENABLED` | Record actions against projects |
+| `DATA_RETENTION_DAYS` | Retention policy for the workspace |
+
+For healthcare deployments, set `PHI_ON_DETECT=block` or `redact` rather than
+the default `warn`, and confirm your model provider's data handling terms
+before sending any member-related content.
+
+**These controls reduce risk. They do not constitute HIPAA compliance, and
+nothing in this codebase should be read as claiming otherwise.** A compliant
+deployment additionally needs a BAA with every processor, encryption at rest,
+network isolation, access control, and a documented risk assessment.
+
+---
+
+## Health and monitoring
+
+`GET /health` reports database connectivity, pgvector availability, which
+providers are live versus fallen back, prompt library size and safety
+configuration. It is safe to use as a readiness probe: it returns `degraded`
+rather than failing when the database is unreachable.

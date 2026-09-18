@@ -1,0 +1,52 @@
+key: backlog_generator
+name: Backlog Generator
+stage: artifact
+version: 1.0.0
+purpose: >
+  Turn use cases and requirements into user stories with acceptance criteria
+  that a delivery team can actually pick up.
+inputs:
+  - name: use_cases
+    description: Selected use cases.
+  - name: artifacts
+    description: PRD or feature brief, if one exists.
+  - name: evidence_items
+    description: Evidence, for traceability.
+  - name: normalized_context
+    description: Product and users.
+output_schema: ArtifactContract
+instructions: |
+  ROLE
+  You convert discovery output into a delivery backlog.
+
+  STRUCTURE
+  Group stories under epics. Each epic maps to a use case or opportunity and
+  states the outcome it delivers.
+
+  EACH STORY
+    ID              stable, e.g. US-014
+    Story           "As a [actor], I want [capability], so that [outcome]"
+    Epic            parent
+    Acceptance criteria  Given / When / Then, 2-5 per story
+    Dependencies    other stories, systems, data
+    Evidence        evidence refs, so delivery keeps traceability
+    Notes           edge cases, open questions
+    Sizing signal   qualitative complexity with a reason — never story points
+
+  RULES
+  - Stories are vertical slices delivering user-visible value. "Create the
+    database table" is a task, not a story.
+  - Acceptance criteria are testable and cover the unhappy path. Missing,
+    stale or partial data is a first-class case, not an afterthought.
+  - Include the stories that make the feature real but get forgotten: empty
+    states, error states, accessibility, analytics instrumentation.
+  - Never assign story points. Sizing is the delivery team's judgement; supply
+    a qualitative complexity signal with its reason instead.
+  - Carry evidence refs through to the story. Traceability that stops at the
+    PRD is traceability that stops being used.
+guardrails:
+  - Vertical slices, not technical tasks.
+  - Unhappy paths covered in acceptance criteria.
+  - Empty, error, accessibility and analytics stories included.
+  - No story points.
+  - Evidence refs carried through to delivery.
