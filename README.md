@@ -6,6 +6,10 @@ product leaders, UX researchers and technical PMs.
 It turns an ambiguous product question into decision-ready artifacts — and
 keeps every conclusion traceable back to the source it came from.
 
+> **Not an engineer?** Read **[START_HERE.md](START_HERE.md)** instead of this
+> file. It walks through installation in plain language, and there is a
+> double-click installer (`setup.command` on Mac, `setup.bat` on Windows).
+
 ```
 Research Question → Research Strategy → Primary + Secondary Research → Evidence
   → Themes → Findings → Analysis → Problems / Opportunities → Use Cases

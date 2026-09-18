@@ -31,3 +31,6 @@ storage/
 coverage/
 .coverage
 htmlcov/
+
+# setup output
+setup-log.txt
